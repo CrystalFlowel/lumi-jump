@@ -1,0 +1,2407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Lumi: Skybound Spirit</title>
+    <!-- Official VK Bridge SDK with safe fallback for local preview -->
+    <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" onerror="window.__vkBridgeLoadFailed = true;"></script>
+    <style>
+        /* ==========================================================================
+           STRICT VK MINI APPS & MOBILE WEBVIEW COMPLIANCE CSS
+           ========================================================================== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100dvh;
+            overflow: hidden;
+            overscroll-behavior: none;
+            touch-action: none;
+            background-color: #090a10;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Ambient background glow for Desktop 9:16 framing */
+        #app-wrapper {
+            position: relative;
+            width: 100vw;
+            height: 100dvh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #090a10;
+        }
+
+        /* 9:16 Game Container */
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: calc(100dvh * (450 / 800));
+            max-height: calc(100vw * (800 / 450));
+            aspect-ratio: 450 / 800;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+            border-radius: 16px;
+            background: #0f2027;
+        }
+
+        /* Fullscreen edge-to-edge on mobile portrait viewports */
+        @media (max-aspect-ratio: 3/4), (max-width: 600px) {
+            #game-container {
+                max-width: 100vw;
+                max-height: 100dvh;
+                width: 100vw;
+                height: 100dvh;
+                border-radius: 0;
+                box-shadow: none;
+            }
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+
+        /* ==========================================================================
+           UI OVERLAYS (START MENU, HUD, GAME OVER)
+           ========================================================================== */
+        .ui-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        /* Top HUD Bar */
+        .hud-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            padding: 16px 18px;
+            width: 100%;
+        }
+
+        .score-pill {
+            background: rgba(12, 16, 28, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 999px;
+            padding: 8px 18px;
+            color: #ffffff;
+            font-weight: 800;
+            font-size: clamp(18px, 4.5vw, 22px);
+            letter-spacing: 0.5px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .score-pill span.unit {
+            font-size: 0.75em;
+            opacity: 0.8;
+            font-weight: 600;
+        }
+
+        .icon-btn {
+            pointer-events: auto;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: rgba(12, 16, 28, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: transform 0.15s ease, background 0.2s ease;
+            outline: none;
+        }
+
+        .icon-btn:hover {
+            background: rgba(255, 255, 255, 0.18);
+            transform: scale(1.06);
+        }
+
+        .icon-btn:active {
+            transform: scale(0.92);
+        }
+
+        .icon-btn svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+        /* Center Screens (Start & Game Over) */
+        .overlay-screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            pointer-events: auto;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .overlay-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* Start Screen Styling */
+        .title-group {
+            text-align: center;
+            margin-bottom: 155px; /* Leaves room in center for idle bouncing Lumi */
+            animation: floatTitle 3s ease-in-out infinite;
+        }
+
+        @keyframes floatTitle {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+        }
+
+        .game-title {
+            font-size: clamp(34px, 9.5vw, 48px);
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #ffffff;
+            text-transform: uppercase;
+            text-shadow:
+                0 0 18px rgba(56, 239, 125, 0.75),
+                0 0 36px rgba(0, 210, 255, 0.55),
+                0 6px 14px rgba(0, 0, 0, 0.55);
+            line-height: 1.08;
+        }
+
+        .game-subtitle {
+            margin-top: 8px;
+            font-size: clamp(12px, 3.3vw, 15px);
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.88);
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+        }
+
+        .best-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 215, 0, 0.45);
+            padding: 8px 20px;
+            border-radius: 999px;
+            color: #ffd700;
+            font-weight: 700;
+            font-size: 14px;
+            margin-bottom: 14px;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        /* Start Screen Controls Onboarding Box */
+        .onboarding-box {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            background: rgba(12, 18, 32, 0.88);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            border-radius: 16px;
+            padding: 10px 18px;
+            margin-bottom: 20px;
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 12.5px;
+            font-weight: 600;
+            text-align: center;
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+        }
+
+        .onboarding-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .onboarding-tag {
+            background: rgba(56, 239, 125, 0.18);
+            border: 1px solid rgba(56, 239, 125, 0.45);
+            color: #78ffd6;
+            border-radius: 6px;
+            padding: 2px 7px;
+            font-size: 11px;
+            font-weight: 800;
+        }
+
+        .primary-btn {
+            pointer-events: auto;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 18px 52px;
+            border-radius: 999px;
+            font-size: clamp(19px, 4.8vw, 23px);
+            font-weight: 900;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: #07191e;
+            background: linear-gradient(135deg, #38ef7d 0%, #00d2ff 100%);
+            box-shadow:
+                0 10px 28px rgba(0, 210, 255, 0.45),
+                0 0 22px rgba(56, 239, 125, 0.6),
+                inset 0 2px 2px rgba(255, 255, 255, 0.6);
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+            animation: pulseBtn 1.8s infinite;
+        }
+
+        @keyframes pulseBtn {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .primary-btn:hover {
+            box-shadow:
+                0 12px 32px rgba(0, 210, 255, 0.65),
+                0 0 30px rgba(56, 239, 125, 0.8),
+                inset 0 2px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .primary-btn:active {
+            transform: scale(0.94) !important;
+        }
+
+        /* Rewarded Ad "Second Chance" Button */
+        .rewarded-btn {
+            pointer-events: auto;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            padding: 15px 20px;
+            margin-bottom: 12px;
+            border-radius: 999px;
+            font-size: 16px;
+            font-weight: 900;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #1f1300;
+            background: linear-gradient(135deg, #ffd700 0%, #ff9a00 100%);
+            box-shadow:
+                0 8px 24px rgba(255, 165, 0, 0.45),
+                0 0 18px rgba(255, 215, 0, 0.55),
+                inset 0 2px 2px rgba(255, 255, 255, 0.75);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+            animation: pulseBtn 1.5s infinite;
+        }
+
+        .rewarded-btn.hidden {
+            display: none !important;
+        }
+
+        .rewarded-btn:active {
+            transform: scale(0.94) !important;
+        }
+
+        .rewarded-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        /* Simulated Ad Overlay for Preview Mode */
+        .sim-ad-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(5, 8, 18, 0.96);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        .sim-ad-overlay.hidden {
+            display: none !important;
+        }
+
+        .sim-ad-spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid rgba(255, 215, 0, 0.25);
+            border-top-color: #ffd700;
+            border-radius: 50%;
+            animation: spinAd 0.8s linear infinite;
+            margin-bottom: 14px;
+        }
+
+        @keyframes spinAd {
+            to { transform: rotate(360deg); }
+        }
+
+        .sim-ad-label {
+            font-size: 15px;
+            font-weight: 800;
+            color: #ffd700;
+            letter-spacing: 0.8px;
+        }
+
+        /* Glassmorphism Card for Game Over */
+        .glass-card {
+            width: 100%;
+            max-width: 340px;
+            background: rgba(15, 23, 42, 0.94);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 28px;
+            padding: 32px 24px;
+            text-align: center;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.82); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .gameover-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: 1px;
+            margin-bottom: 6px;
+            text-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
+        }
+
+        .new-record-badge {
+            background: linear-gradient(90deg, #ff9a00, #ffd700);
+            color: #1a1100;
+            font-size: 12px;
+            font-weight: 900;
+            padding: 4px 12px;
+            border-radius: 999px;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 16px;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
+            animation: pulseBtn 1.2s infinite;
+        }
+
+        .new-record-badge.hidden {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            width: 100%;
+            margin: 14px 0 26px 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 14px 10px;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 26px;
+            font-weight: 900;
+            color: #ffffff;
+        }
+
+        .stat-value.gold {
+            color: #ffd700;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app-wrapper">
+    <div id="game-container">
+        <!-- Procedural 2D Game Canvas -->
+        <canvas id="gameCanvas" width="450" height="800"></canvas>
+
+        <!-- HUD Layer -->
+        <div class="ui-layer">
+            <div class="hud-bar">
+                <div class="score-pill" id="hudScorePill" style="opacity: 0;">
+                    <span id="hudScoreVal">0</span><span class="unit" id="hudScoreUnit">m</span>
+                </div>
+                <button class="icon-btn" id="muteBtn" aria-label="Toggle Sound" title="Toggle Sound">
+                    <!-- Unmuted Speaker SVG -->
+                    <svg id="iconSoundOn" viewBox="0 0 24 24">
+                        <path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
+                    </svg>
+                    <!-- Muted Speaker SVG -->
+                    <svg id="iconSoundOff" viewBox="0 0 24 24" style="display:none;">
+                        <path d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- START MENU OVERLAY -->
+        <div class="overlay-screen" id="startScreen">
+            <div class="title-group">
+                <h1 class="game-title" id="uiGameTitle">Lumi: Skybound</h1>
+                <p class="game-subtitle" id="uiGameSubtitle">Endless Sky Spirit</p>
+            </div>
+            <div class="best-badge">
+                <span id="uiBestLabel">★ BEST ALTITUDE:</span>
+                <span id="startBestScore">0m</span>
+            </div>
+            <div class="onboarding-box">
+                <div class="onboarding-row">
+                    <span class="onboarding-tag">PC</span>
+                    <span id="uiCtrlDesktop">A / D or ◀ ▶ Arrow Keys</span>
+                </div>
+                <div class="onboarding-row">
+                    <span class="onboarding-tag">MOBILE</span>
+                    <span id="uiCtrlMobile">Touch Left / Right Half</span>
+                </div>
+            </div>
+            <button class="primary-btn" id="playBtn">PLAY</button>
+        </div>
+
+        <!-- GAME OVER OVERLAY -->
+        <div class="overlay-screen hidden" id="gameOverScreen">
+            <div class="glass-card">
+                <h2 class="gameover-title" id="uiGameOverTitle">FELL DOWN!</h2>
+                <div class="new-record-badge hidden" id="newRecordBadge">★ NEW RECORD! ★</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-label" id="uiStatAltitude">Altitude</div>
+                        <div class="stat-value" id="finalScoreVal">0m</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label" id="uiStatBest">Best</div>
+                        <div class="stat-value gold" id="finalBestVal">0m</div>
+                    </div>
+                </div>
+                <!-- Second Chance (Rewarded Video Ad) Button - Once Per Run -->
+                <button class="rewarded-btn" id="reviveBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5M10,15L8,12H11V9L13,12H10V15Z"/>
+                    </svg>
+                    <span id="uiReviveBtnText">SECOND CHANCE</span>
+                </button>
+                <button class="primary-btn" id="restartBtn" style="width:100%; padding: 15px 24px; font-size: 18px;">PLAY AGAIN</button>
+            </div>
+        </div>
+
+        <!-- SIMULATED AD OVERLAY (FOR PREVIEW / LOCAL TESTING) -->
+        <div class="sim-ad-overlay hidden" id="simAdOverlay">
+            <div class="sim-ad-spinner"></div>
+            <div class="sim-ad-label" id="simAdText">Rewarded Video Preview...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * ============================================================================
+ * 1. CORE CONSTANTS, MATH HELPERS & LOCALIZATION (RU / EN)
+ * ============================================================================
+ */
+const LOGICAL_WIDTH = 450;
+const LOGICAL_HEIGHT = 800;
+
+// Normalized 60 FPS Physics Constants
+// Max Jump Height H_max = (-13.6^2) / (2 * 0.42) = 184.96 / 0.84 ≈ 220.19px
+const GRAVITY = 0.42;
+const JUMP_VELOCITY = -13.6;
+const MIN_GAP_Y = 55;
+const MAX_GAP_Y = 175; // Strictly below 220px for 100% guaranteed reachability
+
+const GAME_STATE = {
+    START_MENU: 'START_MENU',
+    PLAYING: 'PLAYING',
+    PAUSED: 'PAUSED',
+    GAME_OVER: 'GAME_OVER'
+};
+
+const PLATFORM_TYPE = {
+    STATIC: 'STATIC',
+    MOVING: 'MOVING',
+    BREAKABLE: 'BREAKABLE'
+};
+
+function lerp(a, b, t) {
+    return a + (b - a) * Math.max(0, Math.min(1, t));
+}
+
+function randomRange(min, max) {
+    return min + Math.random() * (max - min);
+}
+
+function hexToRgb(hex) {
+    const clean = hex.replace('#', '');
+    const num = parseInt(clean, 16);
+    return {
+        r: (num >> 16) & 255,
+        g: (num >> 8) & 255,
+        b: num & 255
+    };
+}
+
+function lerpColorHex(hexA, hexB, t) {
+    const a = hexToRgb(hexA);
+    const b = hexToRgb(hexB);
+    const r = Math.round(lerp(a.r, b.r, t));
+    const g = Math.round(lerp(a.g, b.g, t));
+    const bl = Math.round(lerp(a.b, b.b, t));
+    return `rgb(${r}, ${g}, ${bl})`;
+}
+
+// 5-Stage Dynamic Time-of-Day Sky Gradient Keyframes
+const SKY_STAGES = [
+    { alt: 0,    top: '#ff9a8b', bottom: '#6a93cb' }, // Warm Morning Sky
+    { alt: 1500, top: '#00c6ff', bottom: '#0072ff' }, // Bright Cyan Day
+    { alt: 3500, top: '#4b1248', bottom: '#f0c27b' }, // Purple Sunset
+    { alt: 5500, top: '#0f2027', bottom: '#203a43' }, // Deep Starry Night
+    { alt: 8000, top: '#05050a', bottom: '#1a0933' }  // Open Space & Neon Nebulae
+];
+
+function getSkyGradientColors(altitude) {
+    if (altitude <= 0) {
+        return { top: SKY_STAGES[0].top, bottom: SKY_STAGES[0].bottom };
+    }
+    for (let i = 0; i < SKY_STAGES.length - 1; i++) {
+        const curr = SKY_STAGES[i];
+        const next = SKY_STAGES[i + 1];
+        if (altitude >= curr.alt && altitude <= next.alt) {
+            const factor = (altitude - curr.alt) / (next.alt - curr.alt);
+            return {
+                top: lerpColorHex(curr.top, next.top, factor),
+                bottom: lerpColorHex(curr.bottom, next.bottom, factor)
+            };
+        }
+    }
+    const last = SKY_STAGES[SKY_STAGES.length - 1];
+    return { top: last.top, bottom: last.bottom };
+}
+
+// RU / EN Localization Dictionary
+const I18N = {
+    ru: {
+        docTitle: 'Луми: Прыжок в Небо',
+        gameTitle: 'Луми: Прыжок',
+        gameSubtitle: 'Дух Бесконечного Неба',
+        bestLabel: '★ РЕКОРД ВЫСОТЫ:',
+        ctrlDesktop: 'A / D или Стрелки ◀ ▶',
+        ctrlMobile: 'Касание левой / правой стороны',
+        playBtn: 'ИГРАТЬ',
+        gameOverTitle: 'ПАДЕНИЕ!',
+        newRecord: '★ НОВЫЙ РЕКОРД! ★',
+        statAltitude: 'Высота',
+        statBest: 'Рекорд',
+        reviveBtn: 'ВТОРОЙ ШАНС',
+        restartBtn: 'ЕЩЁ РАЗ',
+        unit: 'м',
+        tutLeft: '◀ ВЛЕВО',
+        tutRight: 'ВПРАВО ▶',
+        simRewardAd: 'Видеореклама за награду...',
+        simInterstitialAd: 'Полноэкранная реклама...'
+    },
+    en: {
+        docTitle: 'Lumi: Skybound Spirit',
+        gameTitle: 'Lumi: Skybound',
+        gameSubtitle: 'Endless Sky Spirit',
+        bestLabel: '★ BEST ALTITUDE:',
+        ctrlDesktop: 'A / D or ◀ ▶ Arrow Keys',
+        ctrlMobile: 'Touch Left / Right Half',
+        playBtn: 'PLAY',
+        gameOverTitle: 'FELL DOWN!',
+        newRecord: '★ NEW RECORD! ★',
+        statAltitude: 'Altitude',
+        statBest: 'Best',
+        reviveBtn: 'SECOND CHANCE',
+        restartBtn: 'PLAY AGAIN',
+        unit: 'm',
+        tutLeft: '◀ LEFT',
+        tutRight: 'RIGHT ▶',
+        simRewardAd: 'Rewarded Video Preview...',
+        simInterstitialAd: 'Interstitial Ad Preview...'
+    }
+};
+
+let currentLang = 'ru';
+
+function detectInitialLanguage() {
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const vkLang = params.get('vk_language') || params.get('lang');
+        if (vkLang) {
+            const clean = vkLang.toLowerCase();
+            if (clean.startsWith('en')) return 'en';
+            if (clean.startsWith('ru') || clean.startsWith('uk') || clean.startsWith('be') || clean.startsWith('kk')) return 'ru';
+        }
+    } catch (e) {}
+    return 'ru';
+}
+
+function t(key) {
+    const dict = I18N[currentLang] || I18N.ru;
+    return dict[key] || I18N.en[key] || key;
+}
+
+function applyLocalization() {
+    document.title = t('docTitle');
+    document.documentElement.lang = currentLang;
+
+    const setEl = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+
+    setEl('uiGameTitle', t('gameTitle'));
+    setEl('uiGameSubtitle', t('gameSubtitle'));
+    setEl('uiBestLabel', t('bestLabel'));
+    setEl('uiCtrlDesktop', t('ctrlDesktop'));
+    setEl('uiCtrlMobile', t('ctrlMobile'));
+    setEl('playBtn', t('playBtn'));
+    setEl('uiGameOverTitle', t('gameOverTitle'));
+    setEl('newRecordBadge', t('newRecord'));
+    setEl('uiStatAltitude', t('statAltitude'));
+    setEl('uiStatBest', t('statBest'));
+    setEl('uiReviveBtnText', t('reviveBtn'));
+    setEl('restartBtn', t('restartBtn'));
+    setEl('hudScoreUnit', t('unit'));
+
+    if (typeof refreshScoreDisplays === 'function') {
+        refreshScoreDisplays();
+    }
+}
+
+/**
+ * ============================================================================
+ * 2. PROCEDURAL WEB AUDIO API SYNTHESIZER (ZERO EXTERNAL MP3s)
+ * ============================================================================
+ */
+class SoundManager {
+    constructor() {
+        this.ctx = null;
+        this.muted = false;
+        this.tabHidden = false;
+        this.adMuted = false;
+        this.noiseBuffer = null;
+
+        try {
+            this.muted = localStorage.getItem('lumi_jump_muted') === '1';
+        } catch (e) {}
+    }
+
+    initContext() {
+        if (!this.ctx) {
+            const AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                this.ctx = new AudioCtx();
+                this.createNoiseBuffer();
+            }
+        }
+        if (this.ctx && this.ctx.state === 'suspended' && !this.muted && !this.tabHidden && !this.adMuted) {
+            this.ctx.resume().catch(() => {});
+        }
+    }
+
+    createNoiseBuffer() {
+        if (!this.ctx) return;
+        const sampleRate = this.ctx.sampleRate;
+        const length = Math.floor(sampleRate * 0.4);
+        const buffer = this.ctx.createBuffer(1, length, sampleRate);
+        const data = buffer.getChannelData(0);
+        for (let i = 0; i < length; i++) {
+            data[i] = Math.random() * 2 - 1;
+        }
+        this.noiseBuffer = buffer;
+    }
+
+    canPlay() {
+        return this.ctx && !this.muted && !this.tabHidden && !this.adMuted && this.ctx.state === 'running';
+    }
+
+    toggleMute() {
+        this.muted = !this.muted;
+        try {
+            localStorage.setItem('lumi_jump_muted', this.muted ? '1' : '0');
+        } catch (e) {}
+        this.syncContextState();
+    }
+
+    setTabHidden(hidden) {
+        this.tabHidden = hidden;
+        this.syncContextState();
+    }
+
+    setAdMuted(adMuted) {
+        this.adMuted = adMuted;
+        this.syncContextState();
+    }
+
+    syncContextState() {
+        if (!this.ctx) return;
+        if (this.muted || this.tabHidden || this.adMuted) {
+            if (this.ctx.state === 'running') {
+                this.ctx.suspend().catch(() => {});
+            }
+        } else {
+            if (this.ctx.state === 'suspended') {
+                this.ctx.resume().catch(() => {});
+            }
+        }
+    }
+
+    playJump() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(240, now);
+        osc.frequency.exponentialRampToValueAtTime(580, now + 0.14);
+
+        gain.gain.setValueAtTime(0.22, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    }
+
+    playShatter() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+
+        if (this.noiseBuffer) {
+            const noise = this.ctx.createBufferSource();
+            noise.buffer = this.noiseBuffer;
+
+            const filter = this.ctx.createBiquadFilter();
+            filter.type = 'bandpass';
+            filter.frequency.setValueAtTime(800, now);
+            filter.Q.setValueAtTime(1.5, now);
+
+            const nGain = this.ctx.createGain();
+            nGain.gain.setValueAtTime(0.28, now);
+            nGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+
+            noise.connect(filter);
+            filter.connect(nGain);
+            nGain.connect(this.ctx.destination);
+            noise.start(now);
+            noise.stop(now + 0.12);
+        }
+
+        const osc = this.ctx.createOscillator();
+        const oGain = this.ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(160, now);
+        osc.frequency.exponentialRampToValueAtTime(55, now + 0.14);
+
+        oGain.gain.setValueAtTime(0.26, now);
+        oGain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
+
+        osc.connect(oGain);
+        oGain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.15);
+    }
+
+    playStarDash() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        const notes = [523.25, 659.25, 783.99, 1046.5];
+
+        notes.forEach((freq, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const startT = now + idx * 0.065;
+
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, startT);
+
+            gain.gain.setValueAtTime(0.18, startT);
+            gain.gain.exponentialRampToValueAtTime(0.001, startT + 0.32);
+
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(startT);
+            osc.stop(startT + 0.33);
+        });
+    }
+
+    playGameOver() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(320, now);
+        osc.frequency.exponentialRampToValueAtTime(90, now + 0.45);
+
+        gain.gain.setValueAtTime(0.25, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.46);
+
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.46);
+    }
+}
+
+const soundManager = new SoundManager();
+
+/**
+ * ============================================================================
+ * 3. OFFICIAL VK BRIDGE SDK WRAPPER (WITH LOCAL PREVIEW FALLBACK)
+ * ============================================================================
+ */
+const VKBridgeWrapper = {
+    bridge: null,
+    isVKEnv: false,
+    adInProgress: false,
+    lastInterstitialTime: 0,
+
+    initSDK() {
+        if (window.vkBridge && !window.__vkBridgeLoadFailed) {
+            this.bridge = window.vkBridge;
+            const hasVKParams = window.location.search.includes('vk_');
+            this.isVKEnv = hasVKParams;
+
+            this.bridge.send('VKWebAppInit')
+                .then(() => {
+                    this.loadBestScore();
+                    this.preloadNativeAds();
+                })
+                .catch(() => {
+                    this.isVKEnv = false;
+                });
+        }
+    },
+
+    preloadNativeAds() {
+        if (!this.bridge || !this.isVKEnv) return;
+        this.bridge.send('VKWebAppCheckNativeAds', { ad_format: 'reward' }).catch(() => {});
+        this.bridge.send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).catch(() => {});
+    },
+
+    loadBestScore() {
+        if (!this.bridge || !this.isVKEnv) return;
+        this.bridge.send('VKWebAppStorageGet', { keys: ['best_score'] })
+            .then((data) => {
+                if (data && Array.isArray(data.keys)) {
+                    const entry = data.keys.find(k => k.key === 'best_score');
+                    const cloudVal = entry ? parseInt(entry.value, 10) : 0;
+                    if (!isNaN(cloudVal) && cloudVal > bestScore) {
+                        bestScore = cloudVal;
+                        try {
+                            localStorage.setItem('lumi_jump_highscore', String(bestScore));
+                        } catch (e) {}
+                        if (typeof refreshScoreDisplays === 'function') {
+                            refreshScoreDisplays();
+                        }
+                    }
+                }
+            })
+            .catch(() => {});
+    },
+
+    saveBestScore(newBest) {
+        try {
+            localStorage.setItem('lumi_jump_highscore', String(newBest));
+        } catch (e) {}
+
+        if (this.bridge && this.isVKEnv) {
+            this.bridge.send('VKWebAppStorageSet', {
+                key: 'best_score',
+                value: String(newBest)
+            }).catch(() => {});
+        }
+    },
+
+    showRewardedAd(onRewardCallback) {
+        if (this.adInProgress) return;
+        this.adInProgress = true;
+        soundManager.setAdMuted(true);
+
+        const finishAd = (rewarded) => {
+            this.adInProgress = false;
+            soundManager.setAdMuted(false);
+            lastFrameTime = performance.now();
+            if (rewarded && typeof onRewardCallback === 'function') {
+                onRewardCallback();
+            }
+            this.preloadNativeAds();
+        };
+
+        if (this.bridge && this.isVKEnv) {
+            this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'reward' })
+                .then((data) => {
+                    finishAd(Boolean(data && data.result));
+                })
+                .catch(() => {
+                    this.runSimulatedAd(t('simRewardAd'), () => finishAd(true));
+                });
+        } else {
+            this.runSimulatedAd(t('simRewardAd'), () => finishAd(true));
+        }
+    },
+
+    showInterstitialAd(onCloseCallback) {
+        if (this.adInProgress) return;
+        const now = Date.now();
+        if (now - this.lastInterstitialTime < 60000) {
+            if (typeof onCloseCallback === 'function') onCloseCallback();
+            return;
+        }
+
+        this.adInProgress = true;
+        soundManager.setAdMuted(true);
+
+        const finishAd = () => {
+            this.lastInterstitialTime = Date.now();
+            this.adInProgress = false;
+            soundManager.setAdMuted(false);
+            lastFrameTime = performance.now();
+            if (typeof onCloseCallback === 'function') onCloseCallback();
+            this.preloadNativeAds();
+        };
+
+        if (this.bridge && this.isVKEnv) {
+            this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+                .then(() => finishAd())
+                .catch(() => finishAd());
+        } else {
+            this.runSimulatedAd(t('simInterstitialAd'), () => finishAd());
+        }
+    },
+
+    runSimulatedAd(labelText, onComplete) {
+        const overlay = document.getElementById('simAdOverlay');
+        const label = document.getElementById('simAdText');
+        if (overlay && label) {
+            label.textContent = labelText;
+            overlay.classList.remove('hidden');
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                if (typeof onComplete === 'function') onComplete();
+            }, 950);
+        } else {
+            if (typeof onComplete === 'function') onComplete();
+        }
+    }
+};
+
+/**
+ * ============================================================================
+ * 3.5. MOBILE 60+ FPS RENDER CACHE (ZERO OFFSCREEN TEXTURES & ZERO ALLOCATIONS)
+ * ============================================================================
+ * Caches reusable CanvasGradient objects directly on the main 2D context and
+ * provides a pure-arc capsule path helper. This eliminates all offscreen canvas
+ * `drawImage` UV-scaling glitches and Skia texture-atlas bleeding on Android
+ * Mali GPUs while keeping zero per-frame gradient allocations for locked 60 FPS.
+ */
+function traceCapsule(ctx, x, y, w, h) {
+    const r = Math.min(h * 0.5, w * 0.5);
+    ctx.beginPath();
+    ctx.arc(x + r, y + r, r, Math.PI * 0.5, Math.PI * 1.5);
+    ctx.arc(x + w - r, y + r, r, Math.PI * 1.5, Math.PI * 0.5);
+    ctx.closePath();
+}
+
+const RenderCache = {
+    skyGrad: null,
+    lastSkyQuantizedAlt: -9999,
+    lumiGradNormal: null,
+    lumiGradBoost: null,
+
+    init(mainCtx) {
+        const r = 20;
+        // Cached in Lumi's local (0,0) coordinate space so it scales automatically with ctx.scale()
+        const normGrad = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
+        normGrad.addColorStop(0, '#ffffff');
+        normGrad.addColorStop(0.42, '#a8ff78');
+        normGrad.addColorStop(0.8, '#78ffd6');
+        normGrad.addColorStop(1, '#00d2ff');
+        this.lumiGradNormal = normGrad;
+
+        const boostGrad = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
+        boostGrad.addColorStop(0, '#ffffff');
+        boostGrad.addColorStop(0.45, '#ffeaa7');
+        boostGrad.addColorStop(1, '#fdcb6e');
+        this.lumiGradBoost = boostGrad;
+
+        this.lastSkyQuantizedAlt = -9999;
+        this.getSkyGradient(mainCtx, 0);
+    },
+
+    getSkyGradient(mainCtx, altitude) {
+        // Only recreate the CanvasGradient object when altitude changes by >= 20m
+        const quantized = Math.floor(altitude / 20) * 20;
+        if (quantized !== this.lastSkyQuantizedAlt || !this.skyGrad) {
+            this.lastSkyQuantizedAlt = quantized;
+            const sky = getSkyGradientColors(quantized);
+            const grad = mainCtx.createLinearGradient(0, 0, 0, LOGICAL_HEIGHT);
+            grad.addColorStop(0, sky.top);
+            grad.addColorStop(1, sky.bottom);
+            this.skyGrad = grad;
+        }
+        return this.skyGrad;
+    }
+};
+
+/**
+ * ============================================================================
+ * 4. GAME ENGINE, 1:1 MOBILE RESOLUTION & ENTITIES
+ * ============================================================================
+ */
+const canvas = document.getElementById('gameCanvas');
+// Standard double-buffered opaque context (no `desynchronized: true` to prevent Android Mali tile glitches)
+const ctx = canvas.getContext('2d', { alpha: false });
+
+// Use 1:1 native logical resolution (450x800) to keep pixel fill-rate light for locked 60 FPS
+let currentDpr = 1;
+function configureCanvasResolution() {
+    currentDpr = 1;
+    if (canvas.width !== LOGICAL_WIDTH || canvas.height !== LOGICAL_HEIGHT) {
+        canvas.width = LOGICAL_WIDTH;
+        canvas.height = LOGICAL_HEIGHT;
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+}
+configureCanvasResolution();
+
+// UI Elements
+const hudScorePill = document.getElementById('hudScorePill');
+const hudScoreVal = document.getElementById('hudScoreVal');
+const startScreen = document.getElementById('startScreen');
+const gameOverScreen = document.getElementById('gameOverScreen');
+const startBestScore = document.getElementById('startBestScore');
+const finalScoreVal = document.getElementById('finalScoreVal');
+const finalBestVal = document.getElementById('finalBestVal');
+const newRecordBadge = document.getElementById('newRecordBadge');
+const playBtn = document.getElementById('playBtn');
+const reviveBtn = document.getElementById('reviveBtn');
+const restartBtn = document.getElementById('restartBtn');
+const muteBtn = document.getElementById('muteBtn');
+const iconSoundOn = document.getElementById('iconSoundOn');
+const iconSoundOff = document.getElementById('iconSoundOff');
+
+// Global Game Variables
+let currentState = GAME_STATE.START_MENU;
+let score = 0;
+let bestScore = 0;
+let startY = 620;
+let cameraY = 0;
+let highestPlatformY = 0;
+let consecutiveBreakables = 0;
+let tutorialTimer = 0;
+let globalTime = 0;
+let hasRevivedThisRun = false;
+
+// Load Best Score from localStorage
+try {
+    const savedBest = parseInt(localStorage.getItem('lumi_jump_highscore'), 10);
+    if (!isNaN(savedBest) && savedBest > 0) bestScore = savedBest;
+} catch (e) {}
+
+function refreshScoreDisplays() {
+    const u = t('unit');
+    startBestScore.textContent = `${bestScore}${u}`;
+    finalScoreVal.textContent = `${score}${u}`;
+    finalBestVal.textContent = `${bestScore}${u}`;
+    hudScoreVal.textContent = String(score);
+}
+
+currentLang = detectInitialLanguage();
+applyLocalization();
+
+// Update Mute UI
+function updateMuteUI() {
+    if (soundManager.muted) {
+        iconSoundOn.style.display = 'none';
+        iconSoundOff.style.display = 'block';
+    } else {
+        iconSoundOn.style.display = 'block';
+        iconSoundOff.style.display = 'none';
+    }
+}
+updateMuteUI();
+
+// Input State
+const input = {
+    leftKey: false,
+    rightKey: false,
+    touchLeft: false,
+    touchRight: false,
+    pointerDown: false,
+    pointerX: 0
+};
+
+// Background Stars, Nebulae & Floating Ambient Motes
+const bgStars = [];
+const bgNebulae = [];
+const ambientMotes = [];
+
+function initBackgroundElements() {
+    bgStars.length = 0;
+    // 32 stars split into 2 twinkle groups for single-batch arc rendering
+    for (let i = 0; i < 32; i++) {
+        bgStars.push({
+            x: (12 + Math.random() * (LOGICAL_WIDTH - 24)) | 0,
+            y: (Math.random() * LOGICAL_HEIGHT) | 0,
+            r: i % 3 === 0 ? 1.6 : 1.1,
+            group: i & 1,
+            parallax: 0.14
+        });
+    }
+
+    bgNebulae.length = 0;
+    const nebulaColors = [
+        'rgba(138, 43, 226, 0.08)',
+        'rgba(0, 210, 255, 0.08)',
+        'rgba(255, 0, 128, 0.07)'
+    ];
+    for (let i = 0; i < 3; i++) {
+        bgNebulae.push({
+            x: Math.round(90 + i * 135),
+            y: Math.round(i * 270),
+            radius: 105,
+            color: nebulaColors[i],
+            parallax: 0.08
+        });
+    }
+
+    ambientMotes.length = 0;
+    for (let i = 0; i < 10; i++) {
+        ambientMotes.push({
+            x: Math.random() * LOGICAL_WIDTH,
+            y: Math.random() * LOGICAL_HEIGHT,
+            r: i % 2 === 0 ? 1.8 : 1.3,
+            vy: randomRange(-0.28, -0.12),
+            vx: randomRange(-0.15, 0.15)
+        });
+    }
+}
+
+/**
+ * Zero-Allocation Object-Pooled Particle System (Capped at 45 active particles)
+ * Eliminates garbage collection micro-stutters and uses pure geometric circles.
+ */
+const MAX_PARTICLES = 45;
+const particlePool = [];
+let activeParticleCount = 0;
+
+for (let i = 0; i < MAX_PARTICLES; i++) {
+    particlePool.push({
+        type: 'spark',
+        x: 0,
+        y: 0,
+        vx: 0,
+        vy: 0,
+        gravity: 0,
+        size: 4,
+        rot: 0,
+        vRot: 0,
+        color: '#38ef7d',
+        alpha: 1,
+        decay: 0.03
+    });
+}
+
+function clearParticles() {
+    activeParticleCount = 0;
+}
+
+function acquireParticle() {
+    if (activeParticleCount < MAX_PARTICLES) {
+        return particlePool[activeParticleCount++];
+    }
+    // Recycle oldest particle by swapping index 0 to the end
+    const recycled = particlePool[0];
+    particlePool[0] = particlePool[activeParticleCount - 1];
+    particlePool[activeParticleCount - 1] = recycled;
+    return recycled;
+}
+
+function spawnBounceBurst(x, y, color = '#38ef7d') {
+    const count = 7;
+    for (let i = 0; i < count; i++) {
+        const angle = randomRange(0, Math.PI * 2);
+        const speed = randomRange(1.5, 4.8);
+        const pt = acquireParticle();
+        pt.type = i === 0 ? 'ring' : 'spark';
+        pt.x = x + randomRange(-14, 14);
+        pt.y = y;
+        pt.vx = Math.cos(angle) * speed;
+        pt.vy = Math.sin(angle) * speed - 1.2;
+        pt.gravity = 0.12;
+        pt.size = randomRange(2.8, 5.0);
+        pt.rot = 0;
+        pt.vRot = 0;
+        pt.color = color;
+        pt.alpha = 1;
+        pt.decay = randomRange(0.035, 0.055);
+    }
+}
+
+function spawnShatterDebris(plat) {
+    const count = 8;
+    for (let i = 0; i < count; i++) {
+        const pt = acquireParticle();
+        pt.type = 'shard';
+        pt.x = plat.x + randomRange(4, plat.w - 4);
+        pt.y = plat.y + randomRange(2, plat.h - 2);
+        pt.vx = randomRange(-3.8, 3.8);
+        pt.vy = randomRange(-3.2, 1.8);
+        pt.gravity = 0.34;
+        pt.size = randomRange(4.5, 8.0);
+        pt.rot = 0;
+        pt.vRot = 0;
+        pt.color = i % 2 === 0 ? '#ff6b6b' : '#ffa502';
+        pt.alpha = 1;
+        pt.decay = randomRange(0.028, 0.042);
+    }
+}
+
+let starDashEmitToggle = false;
+const STAR_DASH_COLORS = ['#ffd700', '#ffdd59', '#38ef7d', '#00d2ff', '#ff6b81'];
+function spawnStarDashParticles(x, y) {
+    starDashEmitToggle = !starDashEmitToggle;
+    if (!starDashEmitToggle) return;
+
+    const pt = acquireParticle();
+    pt.type = 'star';
+    pt.x = x + randomRange(-16, 16);
+    pt.y = y + randomRange(6, 20);
+    pt.vx = randomRange(-1.2, 1.2);
+    pt.vy = randomRange(2.2, 5.0);
+    pt.gravity = 0.04;
+    pt.size = randomRange(4.2, 6.8);
+    pt.rot = 0;
+    pt.vRot = 0;
+    pt.color = STAR_DASH_COLORS[(Math.random() * STAR_DASH_COLORS.length) | 0];
+    pt.alpha = 1;
+    pt.decay = 0.045;
+}
+
+// Player Object ("Lumi" - Glowing Droplet Spirit)
+const player = {
+    x: LOGICAL_WIDTH / 2,
+    y: 560,
+    prevY: 560,
+    vx: 0,
+    vy: 0,
+    vxMax: 8.5,
+    radius: 20,
+    scaleX: 1.0,
+    scaleY: 1.0,
+    eyeOffsetX: 0,
+    eyeOffsetY: 0,
+    blinkTimer: 180,
+    isBlinking: false,
+    starDashTimer: 0, // in seconds (2.8s when boosted)
+
+    reset(x, y) {
+        this.x = x;
+        this.y = y;
+        this.prevY = y;
+        this.vx = 0;
+        this.vy = JUMP_VELOCITY;
+        this.scaleX = 0.78;
+        this.scaleY = 1.28;
+        this.eyeOffsetX = 0;
+        this.eyeOffsetY = 0;
+        this.starDashTimer = 0;
+    },
+
+    triggerBounce() {
+        this.vy = JUMP_VELOCITY;
+        // Squash on bounce impact, which then rapidly springs into upward stretch
+        this.scaleX = 1.38;
+        this.scaleY = 0.65;
+        soundManager.playJump();
+    },
+
+    triggerStarDash() {
+        this.starDashTimer = 2.8;
+        this.vy = -22;
+        this.scaleX = 0.72;
+        this.scaleY = 1.35;
+        soundManager.playStarDash();
+    },
+
+    update(dtFactor) {
+        this.prevY = this.y;
+
+        // Horizontal movement from Keyboard or Touch
+        let moveDir = 0;
+        if (input.leftKey || input.touchLeft) moveDir -= 1;
+        if (input.rightKey || input.touchRight) moveDir += 1;
+
+        if (currentState === GAME_STATE.PLAYING) {
+            if (moveDir !== 0) {
+                const targetVx = moveDir * this.vxMax;
+                this.vx = lerp(this.vx, targetVx, 0.22 * dtFactor);
+            } else {
+                // Smooth air resistance
+                this.vx = lerp(this.vx, 0, 0.14 * dtFactor);
+                if (Math.abs(this.vx) < 0.05) this.vx = 0;
+            }
+        } else {
+            // Idle menu centering
+            this.vx = lerp(this.vx, (LOGICAL_WIDTH / 2 - this.x) * 0.05, 0.1 * dtFactor);
+        }
+
+        this.x += this.vx * dtFactor;
+
+        // Seamless Screen Wrap
+        if (this.x < 0) {
+            this.x += LOGICAL_WIDTH;
+        } else if (this.x > LOGICAL_WIDTH) {
+            this.x -= LOGICAL_WIDTH;
+        }
+
+        // Star Dash Boost vs Standard Gravity
+        if (this.starDashTimer > 0) {
+            this.starDashTimer -= (dtFactor * 16.667) / 1000;
+            if (this.starDashTimer > 0.35) {
+                this.vy = -22;
+            } else {
+                // Smoothly decelerate into a normal jump at the end of Star Dash
+                this.vy = lerp(this.vy, JUMP_VELOCITY * 0.85, 0.18 * dtFactor);
+            }
+            spawnStarDashParticles(this.x, this.y);
+            if (this.starDashTimer <= 0) {
+                this.starDashTimer = 0;
+                this.vy = JUMP_VELOCITY * 0.9;
+            }
+        } else {
+            this.vy += GRAVITY * dtFactor;
+            // Terminal falling velocity safeguard
+            if (this.vy > 16.5) this.vy = 16.5;
+        }
+
+        this.y += this.vy * dtFactor;
+
+        // Jelly Squash & Stretch Spring Physics
+        // Immediately after a bounce squash (scaleX > 1.15), transition toward upward launch stretch (0.78, 1.28)
+        let targetSX = 1.0;
+        let targetSY = 1.0;
+
+        if (this.scaleX > 1.12 && this.vy < -8) {
+            // Spring from impact squash into launch stretch
+            this.scaleX = lerp(this.scaleX, 0.78, 0.32 * dtFactor);
+            this.scaleY = lerp(this.scaleY, 1.28, 0.32 * dtFactor);
+        } else {
+            if (this.vy < -4) {
+                // Rising stretch
+                const riseFactor = Math.min(1, Math.abs(this.vy) / 14);
+                targetSX = lerp(1.0, 0.82, riseFactor);
+                targetSY = lerp(1.0, 1.22, riseFactor);
+            } else if (this.vy > 4) {
+                // Falling slight elongation
+                const fallFactor = Math.min(1, (this.vy - 4) / 12);
+                targetSX = lerp(1.0, 0.88, fallFactor);
+                targetSY = lerp(1.0, 1.14, fallFactor);
+            } else {
+                // Near apex: smoothly return to 1.0, 1.0
+                targetSX = 1.0;
+                targetSY = 1.0;
+            }
+            this.scaleX = lerp(this.scaleX, targetSX, 0.18 * dtFactor);
+            this.scaleY = lerp(this.scaleY, targetSY, 0.18 * dtFactor);
+        }
+
+        // Expressive Eye Look Target (towards vx, vy)
+        const targetEyeX = Math.max(-5.5, Math.min(5.5, this.vx * 0.65));
+        const targetEyeY = Math.max(-4.5, Math.min(4.5, this.vy * 0.28));
+        this.eyeOffsetX = lerp(this.eyeOffsetX, targetEyeX, 0.25 * dtFactor);
+        this.eyeOffsetY = lerp(this.eyeOffsetY, targetEyeY, 0.25 * dtFactor);
+
+        // Occasional Cute Blinking
+        this.blinkTimer -= dtFactor;
+        if (this.blinkTimer <= 0) {
+            if (!this.isBlinking) {
+                this.isBlinking = true;
+                this.blinkTimer = 8; // Blink duration ~130ms
+            } else {
+                this.isBlinking = false;
+                this.blinkTimer = randomRange(140, 320);
+            }
+        }
+    },
+
+    draw(ctx, cameraOffsetY) {
+        // Draw primary body and seamless wrap ghost if near screen edge
+        this.drawSingleInstance(ctx, this.x, this.y - cameraOffsetY);
+        if (this.x < this.radius * 2) {
+            this.drawSingleInstance(ctx, this.x + LOGICAL_WIDTH, this.y - cameraOffsetY);
+        } else if (this.x > LOGICAL_WIDTH - this.radius * 2) {
+            this.drawSingleInstance(ctx, this.x - LOGICAL_WIDTH, this.y - cameraOffsetY);
+        }
+    },
+
+    drawSingleInstance(ctx, drawX, drawY) {
+        if (drawY < -60 || drawY > LOGICAL_HEIGHT + 60) return;
+
+        ctx.save();
+        ctx.translate(Math.round(drawX), Math.round(drawY));
+        ctx.scale(this.scaleX, this.scaleY);
+
+        const r = this.radius;
+        const isBoosted = this.starDashTimer > 0;
+
+        // 1. Soft Layered Outer Aura (Zero offscreen texture sampling)
+        ctx.fillStyle = isBoosted ? 'rgba(255, 200, 0, 0.16)' : 'rgba(0, 210, 255, 0.14)';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.85, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = isBoosted ? 'rgba(255, 225, 80, 0.26)' : 'rgba(56, 239, 125, 0.22)';
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Smooth Bezier Droplet Body using pre-cached local-space CanvasGradient
+        ctx.fillStyle = isBoosted ? RenderCache.lumiGradBoost : RenderCache.lumiGradNormal;
+        ctx.beginPath();
+        ctx.moveTo(0, -r * 1.18);
+        ctx.bezierCurveTo(r * 0.85, -r * 0.95, r * 1.12, -r * 0.1, r * 0.98, r * 0.55);
+        ctx.bezierCurveTo(r * 0.85, r * 1.0, -r * 0.85, r * 1.0, -r * 0.98, r * 0.55);
+        ctx.bezierCurveTo(-r * 1.12, -r * 0.1, -r * 0.85, -r * 0.95, 0, -r * 1.18);
+        ctx.closePath();
+        ctx.fill();
+
+        // 3. Glossy Top-Left Specular Jelly Highlight
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.58)';
+        ctx.beginPath();
+        ctx.ellipse(-r * 0.36, -r * 0.45, r * 0.22, r * 0.12, -0.5, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4. Cute Rosy Cheeks
+        ctx.fillStyle = 'rgba(255, 118, 145, 0.42)';
+        ctx.beginPath();
+        ctx.ellipse(-10, 3.8, 3.2, 1.8, 0, 0, Math.PI * 2);
+        ctx.ellipse(10, 3.8, 3.2, 1.8, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 5. Expressive Eyes looking toward (vx, vy)
+        const ex = this.eyeOffsetX;
+        const ey = this.eyeOffsetY;
+        const leftEyeX = -6.5 + ex;
+        const rightEyeX = 6.5 + ex;
+        const eyeY = -1 + ey;
+
+        if (this.isBlinking) {
+            ctx.strokeStyle = '#0f172a';
+            ctx.lineWidth = 2.2;
+            ctx.lineCap = 'round';
+            ctx.beginPath();
+            ctx.moveTo(leftEyeX - 3, eyeY);
+            ctx.lineTo(leftEyeX + 3, eyeY);
+            ctx.moveTo(rightEyeX - 3, eyeY);
+            ctx.lineTo(rightEyeX + 3, eyeY);
+            ctx.stroke();
+        } else {
+            // Dark Pupils
+            ctx.fillStyle = '#0f172a';
+            ctx.beginPath();
+            ctx.arc(leftEyeX, eyeY, 3.4, 0, Math.PI * 2);
+            ctx.arc(rightEyeX, eyeY, 3.4, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Clean Circular White Specular Highlights
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(leftEyeX - 1.1, eyeY - 1.2, 1.2, 0, Math.PI * 2);
+            ctx.arc(rightEyeX - 1.1, eyeY - 1.2, 1.2, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        ctx.restore();
+    }
+};
+
+/**
+ * ============================================================================
+ * 5. PLATFORM GENERATOR (GUARANTEED REACHABLE) & POWER-UPS
+ * ============================================================================
+ */
+const platforms = [];
+
+function createPlatform(y, forceType = null) {
+    // Difficulty scales from 0.0 at 0m to 1.0 at 8000m
+    const difficulty = Math.min(score / 8000, 1.0);
+
+    // Platform width gradually narrows from 78px to 62px at high altitudes
+    const w = Math.round(lerp(78, 62, difficulty));
+    const h = 16;
+    const x = randomRange(14, LOGICAL_WIDTH - w - 14);
+
+    let type = forceType;
+    if (!type) {
+        const movingProb = lerp(0.10, 0.45, difficulty);
+        const breakableProb = lerp(0.05, 0.35, difficulty);
+        const roll = Math.random();
+
+        // Anti-Frustration Safeguard: Never spawn more than 2 Breakable platforms in a row
+        if (consecutiveBreakables >= 2) {
+            type = Math.random() < (movingProb / (1 - breakableProb))
+                ? PLATFORM_TYPE.MOVING
+                : PLATFORM_TYPE.STATIC;
+        } else if (roll < breakableProb) {
+            type = PLATFORM_TYPE.BREAKABLE;
+        } else if (roll < breakableProb + movingProb) {
+            type = PLATFORM_TYPE.MOVING;
+        } else {
+            type = PLATFORM_TYPE.STATIC;
+        }
+    }
+
+    if (type === PLATFORM_TYPE.BREAKABLE) {
+        consecutiveBreakables++;
+    } else {
+        consecutiveBreakables = 0;
+    }
+
+    // Power-Up: Star Dash / Jetpack (6% chance on Static or Moving platforms above starter zone)
+    let hasStarDash = false;
+    if (
+        currentState === GAME_STATE.PLAYING &&
+        y < startY - 250 &&
+        (type === PLATFORM_TYPE.STATIC || type === PLATFORM_TYPE.MOVING) &&
+        Math.random() < 0.06
+    ) {
+        hasStarDash = true;
+    }
+
+    const speed = (1.5 + difficulty * 2.0) * (Math.random() < 0.5 ? 1 : -1);
+
+    return {
+        x,
+        y,
+        w,
+        h,
+        type,
+        vx: type === PLATFORM_TYPE.MOVING ? speed : 0,
+        hasStarDash,
+        broken: false
+    };
+}
+
+function initPlatformsForMenu() {
+    platforms.length = 0;
+    consecutiveBreakables = 0;
+
+    // Centered starter platform right under Lumi
+    const starterW = 96;
+    const starterPlat = {
+        x: (LOGICAL_WIDTH - starterW) / 2,
+        y: 620,
+        w: starterW,
+        h: 16,
+        type: PLATFORM_TYPE.STATIC,
+        vx: 0,
+        hasStarDash: false,
+        broken: false
+    };
+    platforms.push(starterPlat);
+    highestPlatformY = starterPlat.y;
+
+    // Populate initial screen of platforms upward
+    while (highestPlatformY > -LOGICAL_HEIGHT) {
+        const gap = randomRange(MIN_GAP_Y, MAX_GAP_Y);
+        highestPlatformY -= gap;
+        // First 3 platforms are always safe Static
+        const forceSafe = highestPlatformY > 320 ? PLATFORM_TYPE.STATIC : null;
+        platforms.push(createPlatform(highestPlatformY, forceSafe));
+    }
+}
+
+function updatePlatforms(dtFactor) {
+    // Spawn new platforms above camera view
+    while (highestPlatformY > cameraY - LOGICAL_HEIGHT) {
+        const gap = randomRange(MIN_GAP_Y, MAX_GAP_Y);
+        highestPlatformY -= gap;
+        platforms.push(createPlatform(highestPlatformY));
+    }
+
+    // Update Moving Platforms & Check Power-Up / Bounce Collisions
+    const playerBottomPrev = player.prevY + player.radius * 0.75;
+    const playerBottomCurr = player.y + player.radius * 0.75;
+
+    for (let i = platforms.length - 1; i >= 0; i--) {
+        const p = platforms[i];
+
+        // Move horizontal platforms
+        if (p.type === PLATFORM_TYPE.MOVING) {
+            p.x += p.vx * dtFactor;
+            if (p.x < 10) {
+                p.x = 10;
+                p.vx = Math.abs(p.vx);
+            } else if (p.x + p.w > LOGICAL_WIDTH - 10) {
+                p.x = LOGICAL_WIDTH - 10 - p.w;
+                p.vx = -Math.abs(p.vx);
+            }
+        }
+
+        // Check Star Dash Power-up Direct Pickup in Air
+        if (p.hasStarDash && currentState === GAME_STATE.PLAYING) {
+            const starX = p.x + p.w / 2;
+            const starY = p.y - 18;
+            const dx = Math.abs(player.x - starX);
+            const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
+            const dy = Math.abs(player.y - starY);
+            if (wrappedDx < player.radius + 16 && dy < player.radius + 16) {
+                p.hasStarDash = false;
+                player.triggerStarDash();
+                spawnBounceBurst(starX, starY, '#ffd700');
+            }
+        }
+
+        // While in Star Dash boost, shatter breakable platforms harmlessly if flying through them
+        if (player.starDashTimer > 0 && p.type === PLATFORM_TYPE.BREAKABLE && !p.broken) {
+            const platCenterX = p.x + p.w / 2;
+            const dx = Math.abs(player.x - platCenterX);
+            const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
+            if (wrappedDx <= p.w / 2 + player.radius && Math.abs(player.y - p.y) < 28) {
+                p.broken = true;
+                spawnShatterDebris(p);
+                soundManager.playShatter();
+                platforms.splice(i, 1);
+                continue;
+            }
+        }
+
+        // Platform Landing Collision Rule:
+        // ONLY triggers when falling downward (vy > 0) and bottom edge crosses platform top surface
+        if (player.vy > 0 && !p.broken) {
+            if (playerBottomPrev <= p.y + 8 && playerBottomCurr >= p.y - 2) {
+                // Check horizontal overlap (accounting for seamless screen wrap)
+                const platCenterX = p.x + p.w / 2;
+                const dx = Math.abs(player.x - platCenterX);
+                const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
+                const hitHalfWidth = p.w / 2 + player.radius * 0.68;
+
+                if (wrappedDx <= hitHalfWidth) {
+                    player.y = p.y - player.radius * 0.75;
+
+                    if (p.hasStarDash) {
+                        p.hasStarDash = false;
+                        player.triggerStarDash();
+                        spawnBounceBurst(player.x, p.y, '#ffd700');
+                    } else {
+                        player.triggerBounce();
+                    }
+
+                    if (p.type === PLATFORM_TYPE.BREAKABLE) {
+                        p.broken = true;
+                        spawnShatterDebris(p);
+                        soundManager.playShatter();
+                        platforms.splice(i, 1);
+                        continue;
+                    } else {
+                        const burstCol = p.type === PLATFORM_TYPE.MOVING ? '#00d2ff' : '#38ef7d';
+                        spawnBounceBurst(player.x, p.y, burstCol);
+                    }
+                }
+            }
+        }
+
+        // Garbage Collection: remove platforms below camera view
+        if (p.y > cameraY + LOGICAL_HEIGHT + 100) {
+            platforms.splice(i, 1);
+        }
+    }
+}
+
+function drawPlatforms(ctx, cameraOffsetY) {
+    for (let i = 0; i < platforms.length; i++) {
+        const p = platforms[i];
+        const screenY = Math.round(p.y - cameraOffsetY);
+        // Strict off-screen culling
+        if (screenY < -40 || screenY > LOGICAL_HEIGHT + 30) continue;
+
+        const px = Math.round(p.x);
+        const pw = p.w;
+        const ph = p.h;
+
+        let glowCol = 'rgba(56, 239, 125, 0.24)';
+        let baseCol = '#11998e';
+        let topCol = '#56f09f';
+
+        if (p.type === PLATFORM_TYPE.MOVING) {
+            glowCol = 'rgba(0, 210, 255, 0.24)';
+            baseCol = '#005bea';
+            topCol = '#5ecbf7';
+        } else if (p.type === PLATFORM_TYPE.BREAKABLE) {
+            glowCol = 'rgba(255, 107, 107, 0.24)';
+            baseCol = '#c0392b';
+            topCol = '#ff7b7b';
+        }
+
+        // 1. Soft Outer Glow Halo Capsule
+        ctx.fillStyle = glowCol;
+        traceCapsule(ctx, px - 5, screenY - 5, pw + 10, ph + 10);
+        ctx.fill();
+
+        // 2. Main Platform Base Capsule
+        ctx.fillStyle = baseCol;
+        traceCapsule(ctx, px, screenY, pw, ph);
+        ctx.fill();
+
+        // 3. Bright Upper Layer Capsule
+        ctx.fillStyle = topCol;
+        traceCapsule(ctx, px, screenY, pw, ph - 4);
+        ctx.fill();
+
+        // 4. Glossy Top Highlight Strip
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.42)';
+        traceCapsule(ctx, px + 6, screenY + 2, pw - 12, 4);
+        ctx.fill();
+
+        // 5. Crack Lines for Breakable Platforms
+        if (p.type === PLATFORM_TYPE.BREAKABLE) {
+            ctx.strokeStyle = '#3b0909';
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            const cx1 = px + pw * 0.35;
+            const cx2 = px + pw * 0.68;
+
+            ctx.beginPath();
+            ctx.moveTo(cx1, screenY + 2);
+            ctx.lineTo(cx1 - 5, screenY + 7);
+            ctx.lineTo(cx1 + 3, screenY + 11);
+            ctx.lineTo(cx1 - 2, screenY + ph - 2);
+
+            ctx.moveTo(cx2, screenY + ph - 2);
+            ctx.lineTo(cx2 + 4, screenY + 9);
+            ctx.lineTo(cx2 - 3, screenY + 5);
+            ctx.stroke();
+        }
+
+        // 6. Draw Star Dash Power-Up if present
+        if (p.hasStarDash) {
+            drawStarPowerUp(ctx, Math.round(px + pw * 0.5), screenY - 18);
+        }
+    }
+}
+
+function drawStarPowerUp(ctx, x, y) {
+    const bobY = Math.round(y + Math.sin(globalTime * 5) * 3);
+
+    // Outer Golden Halo
+    ctx.fillStyle = 'rgba(255, 215, 0, 0.25)';
+    ctx.beginPath();
+    ctx.arc(x, bobY, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Rotating 5-Point Star
+    ctx.save();
+    ctx.translate(x, bobY);
+    ctx.rotate(globalTime * 2.2);
+    ctx.fillStyle = '#ffd700';
+    ctx.beginPath();
+    const spikes = 5;
+    const outerR = 11.5;
+    const innerR = 5.2;
+    for (let i = 0; i < spikes * 2; i++) {
+        const rad = i % 2 === 0 ? outerR : innerR;
+        const angle = (i * Math.PI) / spikes - Math.PI / 2;
+        const sx = Math.cos(angle) * rad;
+        const sy = Math.sin(angle) * rad;
+        if (i === 0) ctx.moveTo(sx, sy);
+        else ctx.lineTo(sx, sy);
+    }
+    ctx.closePath();
+    ctx.fill();
+
+    // Bright Core
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+}
+
+/**
+ * ============================================================================
+ * 6. PARTICLE & BACKGROUND RENDERING (PURE GEOMETRY, ZERO TEXTURE BLEEDING)
+ * ============================================================================
+ */
+function updateAndDrawParticles(ctx, dtFactor, cameraOffsetY) {
+    let i = 0;
+    while (i < activeParticleCount) {
+        const pt = particlePool[i];
+        pt.x += pt.vx * dtFactor;
+        pt.y += pt.vy * dtFactor;
+        pt.vy += pt.gravity * dtFactor;
+        pt.alpha -= pt.decay * dtFactor;
+
+        if (pt.alpha <= 0.02 || pt.y > cameraY + LOGICAL_HEIGHT + 80) {
+            activeParticleCount--;
+            const last = particlePool[activeParticleCount];
+            particlePool[activeParticleCount] = pt;
+            particlePool[i] = last;
+            continue;
+        }
+
+        const screenY = Math.round(pt.y - cameraOffsetY);
+        const px = Math.round(pt.x);
+        if (screenY < -25 || screenY > LOGICAL_HEIGHT + 25 || px < -25 || px > LOGICAL_WIDTH + 25) {
+            i++;
+            continue;
+        }
+
+        if (pt.type === 'spark' || pt.type === 'star') {
+            // Soft outer halo circle
+            ctx.globalAlpha = pt.alpha * 0.32;
+            ctx.fillStyle = pt.color;
+            ctx.beginPath();
+            ctx.arc(px, screenY, pt.size * 1.45, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Crisp bright inner core circle
+            ctx.globalAlpha = pt.alpha;
+            ctx.fillStyle = pt.type === 'star' ? '#ffffff' : pt.color;
+            ctx.beginPath();
+            ctx.arc(px, screenY, pt.size * 0.65, 0, Math.PI * 2);
+            ctx.fill();
+        } else if (pt.type === 'ring') {
+            ctx.globalAlpha = pt.alpha * 0.85;
+            ctx.strokeStyle = pt.color;
+            ctx.lineWidth = 1.8;
+            ctx.beginPath();
+            ctx.arc(px, screenY, pt.size * (2.1 - pt.alpha), 0, Math.PI * 2);
+            ctx.stroke();
+        } else if (pt.type === 'shard') {
+            ctx.globalAlpha = pt.alpha;
+            ctx.fillStyle = pt.color;
+            ctx.beginPath();
+            ctx.arc(px, screenY, pt.size * 0.55, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        i++;
+    }
+    ctx.globalAlpha = 1;
+}
+
+function drawDynamicBackground(ctx, dtFactor) {
+    // 1. Explicit tile clear + Cached Sky Gradient Fill (Zero offscreen texture stretching!)
+    ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+    ctx.fillStyle = RenderCache.getSkyGradient(ctx, score);
+    ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
+
+    // 2. Soft Space Nebulae (fade in after 6500m)
+    if (score > 6500) {
+        ctx.globalAlpha = Math.min(1, (score - 6500) / 2000);
+        for (let i = 0; i < bgNebulae.length; i++) {
+            const neb = bgNebulae[i];
+            const span = LOGICAL_HEIGHT + neb.radius * 2;
+            let ny = (neb.y - cameraY * neb.parallax) % span;
+            if (ny < -neb.radius) ny += span;
+            if (ny + neb.radius >= 0 && ny - neb.radius <= LOGICAL_HEIGHT) {
+                ctx.fillStyle = neb.color;
+                ctx.beginPath();
+                ctx.arc(neb.x, Math.round(ny), neb.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+        ctx.globalAlpha = 1;
+    }
+
+    // 3. Twinkling Parallax Stars (batched into 2 single-path circle groups)
+    if (score > 3800) {
+        const starVisibility = Math.min(1, (score - 3800) / 2200);
+        const twinkleA = starVisibility * (0.45 + 0.5 * Math.sin(globalTime * 2.6));
+        const twinkleB = starVisibility * (0.45 + 0.5 * Math.cos(globalTime * 3.1));
+        ctx.fillStyle = '#ffffff';
+
+        ctx.globalAlpha = twinkleA;
+        ctx.beginPath();
+        for (let i = 0; i < bgStars.length; i += 2) {
+            const st = bgStars[i];
+            let sy = (st.y - cameraY * st.parallax) % LOGICAL_HEIGHT;
+            if (sy < 0) sy += LOGICAL_HEIGHT;
+            const isy = sy | 0;
+            ctx.moveTo(st.x + st.r, isy);
+            ctx.arc(st.x, isy, st.r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+
+        ctx.globalAlpha = twinkleB;
+        ctx.beginPath();
+        for (let i = 1; i < bgStars.length; i += 2) {
+            const st = bgStars[i];
+            let sy = (st.y - cameraY * st.parallax) % LOGICAL_HEIGHT;
+            if (sy < 0) sy += LOGICAL_HEIGHT;
+            const isy = sy | 0;
+            ctx.moveTo(st.x + st.r, isy);
+            ctx.arc(st.x, isy, st.r, 0, Math.PI * 2);
+        }
+        ctx.fill();
+        ctx.globalAlpha = 1;
+    }
+
+    // 4. Floating Ambient Spirit Motes (batched into a single anti-aliased circle path)
+    ctx.fillStyle = '#ffffff';
+    ctx.globalAlpha = 0.24;
+    ctx.beginPath();
+    for (let i = 0; i < ambientMotes.length; i++) {
+        const m = ambientMotes[i];
+        m.x += m.vx * dtFactor;
+        m.y += m.vy * dtFactor;
+        if (m.x < 0) m.x += LOGICAL_WIDTH;
+        else if (m.x > LOGICAL_WIDTH) m.x -= LOGICAL_WIDTH;
+
+        let my = (m.y - cameraY * 0.3) % LOGICAL_HEIGHT;
+        if (my < 0) my += LOGICAL_HEIGHT;
+        const imx = m.x | 0;
+        const imy = my | 0;
+        ctx.moveTo(imx + m.r, imy);
+        ctx.arc(imx, imy, m.r, 0, Math.PI * 2);
+    }
+    ctx.fill();
+    ctx.globalAlpha = 1;
+}
+
+function drawTutorialHint(ctx) {
+    if (currentState !== GAME_STATE.PLAYING || tutorialTimer <= 0) return;
+
+    const alpha = Math.min(1, tutorialTimer / 0.8) * 0.78;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+
+    // Subtle divided touch zones indicator at the bottom of the screen
+    ctx.fillStyle = 'rgba(12, 18, 32, 0.55)';
+    traceCapsule(ctx, 35, LOGICAL_HEIGHT - 74, LOGICAL_WIDTH - 70, 44);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+    ctx.lineWidth = 1;
+    traceCapsule(ctx, 35, LOGICAL_HEIGHT - 74, LOGICAL_WIDTH - 70, 44);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT - 66);
+    ctx.lineTo(LOGICAL_WIDTH / 2, LOGICAL_HEIGHT - 38);
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 13px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(t('tutLeft'), LOGICAL_WIDTH * 0.28, LOGICAL_HEIGHT - 52);
+    ctx.fillText(t('tutRight'), LOGICAL_WIDTH * 0.72, LOGICAL_HEIGHT - 52);
+
+    ctx.restore();
+}
+
+/**
+ * ============================================================================
+ * 7. GAME FLOW, REVIVE & STATE TRANSITIONS
+ * ============================================================================
+ */
+function startNewGame() {
+    soundManager.initContext();
+    score = 0;
+    cameraY = 0;
+    startY = 620;
+    tutorialTimer = 3.2; // 3.2 seconds tutorial fade
+    hasRevivedThisRun = false;
+    clearParticles();
+
+    initPlatformsForMenu();
+    player.reset(LOGICAL_WIDTH / 2, 560);
+
+    currentState = GAME_STATE.PLAYING;
+    startScreen.classList.add('hidden');
+    gameOverScreen.classList.add('hidden');
+    hudScorePill.style.opacity = '1';
+    refreshScoreDisplays();
+}
+
+function revivePlayer() {
+    hasRevivedThisRun = true;
+
+    // Clear active inputs so player starts centered
+    input.touchLeft = false;
+    input.touchRight = false;
+    input.leftKey = false;
+    input.rightKey = false;
+
+    // Reposition Lumi safely inside the current camera view and place a wide safety platform underneath
+    const safeY = cameraY + LOGICAL_HEIGHT * 0.65;
+    player.x = LOGICAL_WIDTH / 2;
+    player.y = safeY;
+    player.prevY = safeY;
+    player.vx = 0;
+
+    const safetyPlatW = 110;
+    platforms.push({
+        x: (LOGICAL_WIDTH - safetyPlatW) / 2,
+        y: safeY + 45,
+        w: safetyPlatW,
+        h: 16,
+        type: PLATFORM_TYPE.STATIC,
+        vx: 0,
+        hasStarDash: false,
+        broken: false
+    });
+
+    // Launch Lumi upward with a Star Dash golden boost so they rocket back into action safely
+    player.triggerStarDash();
+    spawnBounceBurst(player.x, player.y, '#ffd700');
+
+    gameOverScreen.classList.add('hidden');
+    hudScorePill.style.opacity = '1';
+    currentState = GAME_STATE.PLAYING;
+}
+
+function triggerGameOver() {
+    if (currentState === GAME_STATE.GAME_OVER) return;
+    currentState = GAME_STATE.GAME_OVER;
+
+    soundManager.playGameOver();
+
+    // Clear active touch inputs
+    input.touchLeft = false;
+    input.touchRight = false;
+    input.leftKey = false;
+    input.rightKey = false;
+
+    let isNewRecord = false;
+    if (score > bestScore) {
+        bestScore = score;
+        isNewRecord = true;
+        VKBridgeWrapper.saveBestScore(bestScore);
+    }
+
+    hudScorePill.style.opacity = '0';
+    refreshScoreDisplays();
+
+    if (isNewRecord && score > 0) {
+        newRecordBadge.classList.remove('hidden');
+    } else {
+        newRecordBadge.classList.add('hidden');
+    }
+
+    // Show "Second Chance" rewarded button only if not used yet this run
+    if (!hasRevivedThisRun) {
+        reviveBtn.classList.remove('hidden');
+    } else {
+        reviveBtn.classList.add('hidden');
+    }
+
+    gameOverScreen.classList.remove('hidden');
+}
+
+function handleReviveClick() {
+    if (hasRevivedThisRun || VKBridgeWrapper.adInProgress) return;
+    soundManager.initContext();
+    VKBridgeWrapper.showRewardedAd(() => {
+        revivePlayer();
+    });
+}
+
+function handleRestartClick() {
+    if (VKBridgeWrapper.adInProgress) return;
+    soundManager.initContext();
+    // Show throttled VK Mini Apps Interstitial Ad on restart (max once per 60s)
+    VKBridgeWrapper.showInterstitialAd(() => {
+        startNewGame();
+    });
+}
+
+/**
+ * ============================================================================
+ * 8. CROSS-PLATFORM INPUT LISTENERS & VK COMPLIANCE HOOKS
+ * ============================================================================
+ */
+// Block right-click & long-tap context menu strictly
+window.addEventListener('contextmenu', (e) => e.preventDefault(), { passive: false });
+window.addEventListener('selectstart', (e) => e.preventDefault(), { passive: false });
+
+// Keyboard Controls (Arrows + A/D + Space/Enter for UI)
+window.addEventListener('keydown', (e) => {
+    soundManager.initContext();
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        input.leftKey = true;
+    } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        input.rightKey = true;
+    } else if (e.code === 'Space' || e.code === 'Enter') {
+        if (currentState === GAME_STATE.START_MENU) {
+            e.preventDefault();
+            startNewGame();
+        } else if (currentState === GAME_STATE.GAME_OVER && !VKBridgeWrapper.adInProgress) {
+            e.preventDefault();
+            handleRestartClick();
+        }
+    }
+});
+
+window.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
+        input.leftKey = false;
+    } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
+        input.rightKey = false;
+    }
+});
+
+// Multi-Touch Controls on Left / Right Halves of Screen
+function evaluateTouches(touchList) {
+    if (currentState !== GAME_STATE.PLAYING) {
+        input.touchLeft = false;
+        input.touchRight = false;
+        return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+
+    let leftActive = false;
+    let rightActive = false;
+
+    for (let i = 0; i < touchList.length; i++) {
+        const t = touchList[i];
+        if (t.clientX < midX) {
+            leftActive = true;
+        } else {
+            rightActive = true;
+        }
+    }
+    input.touchLeft = leftActive;
+    input.touchRight = rightActive;
+}
+
+canvas.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    soundManager.initContext();
+    evaluateTouches(e.touches);
+}, { passive: false });
+
+canvas.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    evaluateTouches(e.touches);
+}, { passive: false });
+
+canvas.addEventListener('touchend', (e) => {
+    e.preventDefault();
+    evaluateTouches(e.touches);
+}, { passive: false });
+
+canvas.addEventListener('touchcancel', (e) => {
+    e.preventDefault();
+    evaluateTouches(e.touches);
+}, { passive: false });
+
+// Mouse Hold Support on Left / Right Halves for Desktop Click-and-Hold convenience
+canvas.addEventListener('mousedown', (e) => {
+    soundManager.initContext();
+    if (currentState !== GAME_STATE.PLAYING) return;
+    input.pointerDown = true;
+    const rect = canvas.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    input.touchLeft = e.clientX < midX;
+    input.touchRight = e.clientX >= midX;
+});
+
+window.addEventListener('mousemove', (e) => {
+    if (!input.pointerDown || currentState !== GAME_STATE.PLAYING) return;
+    const rect = canvas.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    input.touchLeft = e.clientX < midX;
+    input.touchRight = e.clientX >= midX;
+});
+
+window.addEventListener('mouseup', () => {
+    if (input.pointerDown) {
+        input.pointerDown = false;
+        input.touchLeft = false;
+        input.touchRight = false;
+    }
+});
+
+// UI Button Listeners
+playBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    startNewGame();
+});
+
+reviveBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleReviveClick();
+});
+
+restartBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    handleRestartClick();
+});
+
+muteBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    soundManager.initContext();
+    soundManager.toggleMute();
+    updateMuteUI();
+});
+
+// Tab Visibility & Window Focus Auto-Pause (Mandatory Yandex Games Moderation Requirement)
+let isTabPaused = false;
+let lastFrameTime = performance.now();
+
+function handleVisibilityOrBlur(hidden) {
+    if (hidden) {
+        isTabPaused = true;
+        soundManager.setTabHidden(true);
+        input.leftKey = false;
+        input.rightKey = false;
+        input.touchLeft = false;
+        input.touchRight = false;
+    } else {
+        isTabPaused = false;
+        soundManager.setTabHidden(false);
+        lastFrameTime = performance.now();
+    }
+}
+
+document.addEventListener('visibilitychange', () => {
+    handleVisibilityOrBlur(document.hidden);
+});
+
+window.addEventListener('blur', () => {
+    handleVisibilityOrBlur(true);
+});
+
+window.addEventListener('focus', () => {
+    handleVisibilityOrBlur(false);
+});
+
+/**
+ * ============================================================================
+ * 9. HIGH-REFRESH-RATE SAFE MAIN GAME LOOP (60Hz / 120Hz / 144Hz)
+ * ============================================================================
+ */
+function gameLoop(timestamp) {
+    requestAnimationFrame(gameLoop);
+
+    if (isTabPaused || VKBridgeWrapper.adInProgress) {
+        lastFrameTime = timestamp;
+        return;
+    }
+
+    const deltaTime = Math.max(0, timestamp - lastFrameTime);
+    lastFrameTime = timestamp;
+
+    // Normalized delta-time factor (1.0 at 60 FPS = 16.667ms)
+    const dtFactor = Math.min(deltaTime / 16.667, 3);
+    globalTime += (dtFactor * 16.667) / 1000;
+
+    // 1. Update Game Logic based on State
+    if (currentState === GAME_STATE.START_MENU) {
+        player.update(dtFactor);
+        updatePlatforms(dtFactor);
+        // Keep Lumi safely bouncing in the menu
+        if (player.y > 620) {
+            player.y = 620;
+            player.triggerBounce();
+        }
+    } else if (currentState === GAME_STATE.PLAYING) {
+        if (tutorialTimer > 0) {
+            tutorialTimer -= (dtFactor * 16.667) / 1000;
+        }
+
+        player.update(dtFactor);
+        updatePlatforms(dtFactor);
+
+        // Smooth Upward-Only Camera Tracking
+        const cameraThreshold = cameraY + LOGICAL_HEIGHT * 0.42;
+        if (player.y < cameraThreshold) {
+            const targetCamY = player.y - LOGICAL_HEIGHT * 0.42;
+            cameraY += (targetCamY - cameraY) * 0.15 * dtFactor;
+        }
+
+        // Update Score (1m per 10px climbed)
+        const climbedMeters = Math.floor(Math.max(0, startY - player.y) / 10);
+        if (climbedMeters > score) {
+            score = climbedMeters;
+            hudScoreVal.textContent = String(score);
+        }
+
+        // Check Game Over Condition (falling below bottom edge of screen)
+        if (player.y > cameraY + LOGICAL_HEIGHT + 60) {
+            triggerGameOver();
+        }
+    }
+
+    // 2. Render Frame (1:1 native logical coordinate space)
+    drawDynamicBackground(ctx, dtFactor);
+    drawPlatforms(ctx, cameraY);
+    updateAndDrawParticles(ctx, dtFactor, cameraY);
+    player.draw(ctx, cameraY);
+    drawTutorialHint(ctx);
+}
+
+// Initialize Game on Window Load
+window.onload = function () {
+    configureCanvasResolution();
+    RenderCache.init(ctx);
+    initBackgroundElements();
+    initPlatformsForMenu();
+    player.reset(LOGICAL_WIDTH / 2, 560);
+    VKBridgeWrapper.initSDK();
+    lastFrameTime = performance.now();
+    requestAnimationFrame(gameLoop);
+};
+</script>
+</body>
+</html>
