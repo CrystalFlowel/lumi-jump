@@ -1,14 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>Lumi: Skybound Spirit</title>
+    <title>Луми: Прыжок в Небо</title>
     <!-- Official VK Bridge SDK with safe fallback for local preview -->
     <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js" onerror="window.__vkBridgeLoadFailed = true;"></script>
     <style>
         /* ==========================================================================
-           STRICT VK MINI APPS & MOBILE WEBVIEW COMPLIANCE CSS
+           STRICT VK MINI APPS & MOBILE WEBVIEW COMPLIANCE CSS (NO BACKDROP-FILTER)
            ========================================================================== */
         * {
             box-sizing: border-box;
@@ -35,7 +35,6 @@
             justify-content: center;
         }
 
-        /* Ambient background glow for Desktop 9:16 framing */
         #app-wrapper {
             position: relative;
             width: 100vw;
@@ -80,7 +79,7 @@
         }
 
         /* ==========================================================================
-           UI OVERLAYS (START MENU, HUD, GAME OVER)
+           HUD LAYER (NO BLUR FOR LOCKED 60 FPS ON BUDGET ANDROID GPUS)
            ========================================================================== */
         .ui-layer {
             position: absolute;
@@ -92,27 +91,40 @@
             z-index: 10;
         }
 
-        /* Top HUD Bar */
         .hud-bar {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            padding: 16px 18px;
+            padding: 14px 16px;
             width: 100%;
+            gap: 8px;
+        }
+
+        .hud-left {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            align-items: flex-start;
+        }
+
+        .hud-pills-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
 
         .score-pill {
-            background: rgba(12, 16, 28, 0.82);
+            background: rgba(12, 16, 28, 0.84);
             border: 1px solid rgba(255, 255, 255, 0.18);
             border-radius: 999px;
-            padding: 8px 18px;
+            padding: 7px 14px;
             color: #ffffff;
             font-weight: 800;
-            font-size: clamp(18px, 4.5vw, 22px);
-            letter-spacing: 0.5px;
+            font-size: clamp(16px, 4.2vw, 20px);
+            letter-spacing: 0.4px;
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 5px;
         }
 
         .score-pill span.unit {
@@ -121,12 +133,75 @@
             font-weight: 600;
         }
 
+        .coin-pill {
+            background: rgba(12, 16, 28, 0.84);
+            border: 1px solid rgba(255, 215, 0, 0.42);
+            border-radius: 999px;
+            padding: 7px 13px;
+            color: #ffd700;
+            font-weight: 800;
+            font-size: clamp(15px, 3.9vw, 18px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .coin-dot {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #fff6b3, #ffd700 55%, #d97706);
+            border: 1.5px solid #fef08a;
+            flex-shrink: 0;
+        }
+
+        /* Active In-Flight Power-Up Badges */
+        .buff-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-height: 24px;
+        }
+
+        .buff-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            color: #ffffff;
+            background: rgba(12, 16, 28, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .buff-badge.shield {
+            border-color: rgba(56, 217, 255, 0.7);
+            color: #7ee8ff;
+        }
+
+        .buff-badge.magnet {
+            border-color: rgba(255, 107, 181, 0.75);
+            color: #ff99cc;
+        }
+
+        .buff-badge.dash {
+            border-color: rgba(255, 215, 0, 0.8);
+            color: #ffe57f;
+        }
+
+        .buff-badge.hidden {
+            display: none;
+        }
+
         .icon-btn {
             pointer-events: auto;
-            width: 48px;
-            height: 48px;
+            width: 44px;
+            height: 44px;
             border-radius: 50%;
-            background: rgba(12, 16, 28, 0.82);
+            background: rgba(12, 16, 28, 0.84);
             border: 1px solid rgba(255, 255, 255, 0.2);
             color: #ffffff;
             display: flex;
@@ -135,24 +210,22 @@
             cursor: pointer;
             transition: transform 0.15s ease, background 0.2s ease;
             outline: none;
-        }
-
-        .icon-btn:hover {
-            background: rgba(255, 255, 255, 0.18);
-            transform: scale(1.06);
+            flex-shrink: 0;
         }
 
         .icon-btn:active {
-            transform: scale(0.92);
+            transform: scale(0.9);
         }
 
         .icon-btn svg {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             fill: currentColor;
         }
 
-        /* Center Screens (Start & Game Over) */
+        /* ==========================================================================
+           OVERLAY SCREENS (START, SHOP, GAME OVER)
+           ========================================================================== */
         .overlay-screen {
             position: absolute;
             inset: 0;
@@ -160,9 +233,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 24px;
+            padding: 20px;
             pointer-events: auto;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transition: opacity 0.25s ease, visibility 0.25s ease;
+            z-index: 20;
         }
 
         .overlay-screen.hidden {
@@ -171,34 +245,39 @@
             pointer-events: none;
         }
 
-        /* Start Screen Styling */
+        /* Start Menu Layout */
+        #startScreen {
+            justify-content: space-between;
+            padding-top: 68px;
+            padding-bottom: 28px;
+        }
+
         .title-group {
             text-align: center;
-            margin-bottom: 155px; /* Leaves room in center for idle bouncing Lumi */
             animation: floatTitle 3s ease-in-out infinite;
         }
 
         @keyframes floatTitle {
             0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-8px); }
+            50% { transform: translateY(-7px); }
         }
 
         .game-title {
-            font-size: clamp(34px, 9.5vw, 48px);
+            font-size: clamp(32px, 9vw, 44px);
             font-weight: 900;
             letter-spacing: 2px;
             color: #ffffff;
             text-transform: uppercase;
             text-shadow:
-                0 0 18px rgba(56, 239, 125, 0.75),
-                0 0 36px rgba(0, 210, 255, 0.55),
-                0 6px 14px rgba(0, 0, 0, 0.55);
+                0 0 18px rgba(56, 239, 125, 0.7),
+                0 0 32px rgba(0, 210, 255, 0.5),
+                0 5px 12px rgba(0, 0, 0, 0.55);
             line-height: 1.08;
         }
 
         .game-subtitle {
-            margin-top: 8px;
-            font-size: clamp(12px, 3.3vw, 15px);
+            margin-top: 6px;
+            font-size: clamp(11px, 3vw, 14px);
             font-weight: 600;
             color: rgba(255, 255, 255, 0.88);
             letter-spacing: 1.5px;
@@ -206,36 +285,42 @@
             text-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
         }
 
+        .start-bottom-group {
+            width: 100%;
+            max-width: 330px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
         .best-badge {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
             background: rgba(15, 23, 42, 0.9);
             border: 1px solid rgba(255, 215, 0, 0.45);
-            padding: 8px 20px;
+            padding: 7px 16px;
             border-radius: 999px;
             color: #ffd700;
             font-weight: 700;
-            font-size: 14px;
-            margin-bottom: 14px;
-            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            font-size: 13px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.3);
         }
 
-        /* Start Screen Controls Onboarding Box */
         .onboarding-box {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 5px;
             background: rgba(12, 18, 32, 0.88);
             border: 1px solid rgba(255, 255, 255, 0.14);
-            border-radius: 16px;
-            padding: 10px 18px;
-            margin-bottom: 20px;
+            border-radius: 14px;
+            padding: 8px 14px;
             color: rgba(255, 255, 255, 0.9);
-            font-size: 12.5px;
+            font-size: 12px;
             font-weight: 600;
             text-align: center;
-            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+            width: 100%;
         }
 
         .onboarding-row {
@@ -249,10 +334,17 @@
             background: rgba(56, 239, 125, 0.18);
             border: 1px solid rgba(56, 239, 125, 0.45);
             color: #78ffd6;
-            border-radius: 6px;
-            padding: 2px 7px;
-            font-size: 11px;
+            border-radius: 5px;
+            padding: 1px 6px;
+            font-size: 10px;
             font-weight: 800;
+        }
+
+        .start-actions {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+            margin-top: 4px;
         }
 
         .primary-btn {
@@ -260,63 +352,462 @@
             border: none;
             outline: none;
             cursor: pointer;
-            padding: 18px 52px;
+            padding: 16px 28px;
             border-radius: 999px;
-            font-size: clamp(19px, 4.8vw, 23px);
+            font-size: clamp(17px, 4.6vw, 20px);
             font-weight: 900;
-            letter-spacing: 1.5px;
+            letter-spacing: 1.2px;
             text-transform: uppercase;
             color: #07191e;
             background: linear-gradient(135deg, #38ef7d 0%, #00d2ff 100%);
             box-shadow:
-                0 10px 28px rgba(0, 210, 255, 0.45),
-                0 0 22px rgba(56, 239, 125, 0.6),
+                0 8px 22px rgba(0, 210, 255, 0.42),
                 inset 0 2px 2px rgba(255, 255, 255, 0.6);
-            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease;
+            transition: transform 0.15s ease;
+            flex: 1.35;
+        }
+
+        .primary-btn.pulse {
             animation: pulseBtn 1.8s infinite;
         }
 
         @keyframes pulseBtn {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .primary-btn:hover {
-            box-shadow:
-                0 12px 32px rgba(0, 210, 255, 0.65),
-                0 0 30px rgba(56, 239, 125, 0.8),
-                inset 0 2px 2px rgba(255, 255, 255, 0.8);
+            50% { transform: scale(1.04); }
         }
 
         .primary-btn:active {
             transform: scale(0.94) !important;
         }
 
-        /* Rewarded Ad "Second Chance" Button */
+        .shop-open-btn {
+            pointer-events: auto;
+            border: 1px solid rgba(255, 215, 0, 0.55);
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            border-radius: 999px;
+            font-size: 14px;
+            font-weight: 800;
+            letter-spacing: 0.6px;
+            text-transform: uppercase;
+            color: #ffd700;
+            background: rgba(15, 23, 42, 0.92);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            flex: 1;
+            transition: transform 0.15s ease, background 0.2s ease;
+        }
+
+        .shop-open-btn:active {
+            transform: scale(0.94);
+        }
+
+        /* ==========================================================================
+           COMPACT SHOP MODAL (2 UPGRADE BRANCHES + 5 SKINS + COOLDOWN AD BUTTON)
+           ========================================================================== */
+        #shopScreen {
+            background: rgba(6, 10, 22, 0.86);
+            z-index: 30;
+            padding: 14px;
+        }
+
+        .shop-card {
+            width: 100%;
+            max-width: 384px;
+            max-height: 92dvh;
+            background: #11192e;
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            border-radius: 24px;
+            padding: 16px 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            box-shadow: 0 22px 54px rgba(0, 0, 0, 0.72);
+            color: #ffffff;
+        }
+
+        .shop-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .shop-title {
+            font-size: 20px;
+            font-weight: 900;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+        }
+
+        .shop-header-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .shop-close-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.08);
+            color: #ffffff;
+            font-size: 18px;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .shop-close-btn:active {
+            transform: scale(0.9);
+        }
+
+        .ad-coins-btn {
+            width: 100%;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 11px 14px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, #ffd700 0%, #ff9a00 100%);
+            color: #1f1300;
+            font-size: 14px;
+            font-weight: 900;
+            letter-spacing: 0.4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 6px 18px rgba(255, 165, 0, 0.35);
+            transition: transform 0.15s ease, opacity 0.2s ease, background 0.2s ease;
+        }
+
+        .ad-coins-btn:active:not(:disabled) {
+            transform: scale(0.96);
+        }
+
+        .ad-coins-btn:disabled {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            color: rgba(255, 255, 255, 0.55);
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        .ad-coins-btn svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+            flex-shrink: 0;
+        }
+
+        .shop-section-label {
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: rgba(255, 255, 255, 0.55);
+            margin-top: 2px;
+        }
+
+        .upgrades-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .upgrade-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 9px 11px;
+        }
+
+        .upgrade-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            text-align: left;
+            min-width: 0;
+        }
+
+        .upgrade-name {
+            font-size: 13px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .upgrade-desc {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.72);
+            line-height: 1.25;
+        }
+
+        .level-dots {
+            display: flex;
+            gap: 4px;
+            margin-top: 4px;
+        }
+
+        .level-dot {
+            width: 15px;
+            height: 5px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .level-dot.filled-dash {
+            background: #ffd700;
+        }
+
+        .level-dot.filled-magnet {
+            background: #ff6bb5;
+        }
+
+        .skins-list {
+            display: flex;
+            flex-direction: column;
+            gap: 7px;
+        }
+
+        .skin-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 8px 11px;
+        }
+
+        .skin-item.equipped {
+            border-color: rgba(56, 239, 125, 0.75);
+            background: rgba(56, 239, 125, 0.1);
+        }
+
+        .skin-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }
+
+        .skin-swatch {
+            width: 32px;
+            height: 32px;
+            border-radius: 50% 50% 45% 45%;
+            flex-shrink: 0;
+            border: 2px solid rgba(255, 255, 255, 0.55);
+            position: relative;
+        }
+
+        .skin-swatch::before,
+        .skin-swatch::after {
+            content: '';
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #0f172a;
+            top: 12px;
+        }
+
+        .skin-swatch::before { left: 8px; }
+        .skin-swatch::after { right: 8px; }
+
+        .skin-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            min-width: 0;
+        }
+
+        .skin-name {
+            font-size: 13px;
+            font-weight: 800;
+            color: #ffffff;
+        }
+
+        .skin-passive {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.74);
+            line-height: 1.25;
+        }
+
+        .shop-action-btn {
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 8px 11px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 800;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            flex-shrink: 0;
+        }
+
+        .shop-action-btn.buy {
+            background: linear-gradient(135deg, #ffd700, #f59e0b);
+            color: #1f1300;
+        }
+
+        .shop-action-btn.buy:disabled {
+            background: rgba(255, 255, 255, 0.12);
+            color: rgba(255, 255, 255, 0.45);
+            cursor: not-allowed;
+        }
+
+        .shop-action-btn.equip {
+            background: rgba(0, 210, 255, 0.2);
+            border: 1px solid rgba(0, 210, 255, 0.55);
+            color: #7ee8ff;
+        }
+
+        .shop-action-btn.active {
+            background: rgba(56, 239, 125, 0.22);
+            border: 1px solid rgba(56, 239, 125, 0.65);
+            color: #78ffd6;
+            cursor: default;
+        }
+
+        /* ==========================================================================
+           GAME OVER CARD (COMPACT & MOBILE SAFE)
+           ========================================================================== */
+        .glass-card {
+            width: 100%;
+            max-width: 350px;
+            max-height: 92dvh;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            border-radius: 26px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0.84); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .gameover-title {
+            font-size: 27px;
+            font-weight: 900;
+            color: #ffffff;
+            letter-spacing: 0.8px;
+            margin-bottom: 4px;
+            text-shadow: 0 2px 10px rgba(255, 107, 107, 0.45);
+        }
+
+        .new-record-badge {
+            background: linear-gradient(90deg, #ff9a00, #ffd700);
+            color: #1a1100;
+            font-size: 11.5px;
+            font-weight: 900;
+            padding: 4px 12px;
+            border-radius: 999px;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+            animation: pulseBtn 1.2s infinite;
+        }
+
+        .new-record-badge.hidden {
+            display: none;
+        }
+
+        .near-record-banner {
+            width: 100%;
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.25), rgba(255, 184, 0, 0.28));
+            border: 1px solid rgba(255, 195, 0, 0.75);
+            border-radius: 14px;
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            color: #ffe57f;
+            font-size: 13px;
+            font-weight: 800;
+            line-height: 1.25;
+            animation: pulseBtn 1.4s infinite;
+        }
+
+        .near-record-banner.hidden {
+            display: none;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
+            width: 100%;
+            margin: 8px 0 14px 0;
+        }
+
+        .stat-box {
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 14px;
+            padding: 10px 6px;
+        }
+
+        .stat-label {
+            font-size: 10.5px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 3px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 900;
+            color: #ffffff;
+        }
+
+        .stat-value.gold {
+            color: #ffd700;
+        }
+
         .rewarded-btn {
             pointer-events: auto;
             border: none;
             outline: none;
             cursor: pointer;
             width: 100%;
-            padding: 15px 20px;
-            margin-bottom: 12px;
+            padding: 13px 16px;
+            margin-bottom: 9px;
             border-radius: 999px;
-            font-size: 16px;
+            font-size: 14.5px;
             font-weight: 900;
-            letter-spacing: 0.8px;
+            letter-spacing: 0.6px;
             text-transform: uppercase;
             color: #1f1300;
             background: linear-gradient(135deg, #ffd700 0%, #ff9a00 100%);
-            box-shadow:
-                0 8px 24px rgba(255, 165, 0, 0.45),
-                0 0 18px rgba(255, 215, 0, 0.55),
-                inset 0 2px 2px rgba(255, 255, 255, 0.75);
+            box-shadow: 0 6px 18px rgba(255, 165, 0, 0.38);
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: 9px;
-            transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease;
+            gap: 8px;
             animation: pulseBtn 1.5s infinite;
         }
 
@@ -325,136 +816,129 @@
         }
 
         .rewarded-btn:active {
-            transform: scale(0.94) !important;
+            transform: scale(0.95) !important;
         }
 
-        .rewarded-btn svg {
-            width: 20px;
-            height: 20px;
+        .rewarded-btn svg,
+        .secondary-action-btn svg {
+            width: 18px;
+            height: 18px;
             fill: currentColor;
             flex-shrink: 0;
         }
 
-        /* Simulated Ad Overlay for Preview Mode */
-        .sim-ad-overlay {
-            position: absolute;
-            inset: 0;
-            background: rgba(5, 8, 18, 0.96);
-            z-index: 50;
+        .secondary-action-btn {
+            pointer-events: auto;
+            border: 1px solid rgba(255, 255, 255, 0.22);
+            outline: none;
+            cursor: pointer;
+            width: 100%;
+            padding: 11px 14px;
+            margin-bottom: 9px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            letter-spacing: 0.4px;
+            color: #ffffff;
+            background: rgba(255, 255, 255, 0.08);
             display: flex;
-            flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 24px;
-            color: #ffffff;
-            text-align: center;
+            gap: 7px;
+            transition: transform 0.15s ease;
         }
 
-        .sim-ad-overlay.hidden {
+        .secondary-action-btn.double-coins {
+            background: rgba(255, 215, 0, 0.14);
+            border-color: rgba(255, 215, 0, 0.55);
+            color: #ffe57f;
+        }
+
+        .secondary-action-btn.share-btn {
+            background: rgba(0, 119, 255, 0.22);
+            border-color: rgba(82, 168, 255, 0.58);
+            color: #bae0ff;
+        }
+
+        .secondary-action-btn.hidden {
             display: none !important;
         }
 
-        .sim-ad-spinner {
-            width: 44px;
-            height: 44px;
-            border: 4px solid rgba(255, 215, 0, 0.25);
-            border-top-color: #ffd700;
+        .secondary-action-btn:active {
+            transform: scale(0.96);
+        }
+
+        .gameover-bottom-row {
+            display: flex;
+            width: 100%;
+            gap: 8px;
+            margin-top: 2px;
+        }
+
+        /* Toast Notification */
+        .toast-banner {
+            position: absolute;
+            top: 72px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-10px);
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid rgba(56, 239, 125, 0.7);
+            color: #ffffff;
+            padding: 9px 18px;
+            border-radius: 999px;
+            font-size: 13px;
+            font-weight: 800;
+            z-index: 60;
+            opacity: 0;
+            pointer-events: none;
+            white-space: nowrap;
+            transition: opacity 0.25s ease, transform 0.25s ease;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+        }
+
+        .toast-banner.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Neutral Loading Spinner Overlay for Reward Fallback */
+        .ad-loader-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(9, 12, 22, 0.52);
+            z-index: 70;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ad-loader-overlay.hidden {
+            display: none !important;
+        }
+
+        .ad-loader-box {
+            width: 68px;
+            height: 68px;
+            border-radius: 20px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid rgba(255, 255, 255, 0.16);
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .ad-loader-spinner {
+            width: 32px;
+            height: 32px;
+            border: 3.5px solid rgba(255, 255, 255, 0.18);
+            border-top-color: #78ffd6;
             border-radius: 50%;
-            animation: spinAd 0.8s linear infinite;
-            margin-bottom: 14px;
+            animation: spinAd 0.75s linear infinite;
         }
 
         @keyframes spinAd {
             to { transform: rotate(360deg); }
-        }
-
-        .sim-ad-label {
-            font-size: 15px;
-            font-weight: 800;
-            color: #ffd700;
-            letter-spacing: 0.8px;
-        }
-
-        /* Glassmorphism Card for Game Over */
-        .glass-card {
-            width: 100%;
-            max-width: 340px;
-            background: rgba(15, 23, 42, 0.94);
-            border: 1px solid rgba(255, 255, 255, 0.18);
-            border-radius: 28px;
-            padding: 32px 24px;
-            text-align: center;
-            box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-        }
-
-        @keyframes popIn {
-            0% { transform: scale(0.82); opacity: 0; }
-            100% { transform: scale(1); opacity: 1; }
-        }
-
-        .gameover-title {
-            font-size: 32px;
-            font-weight: 900;
-            color: #ffffff;
-            letter-spacing: 1px;
-            margin-bottom: 6px;
-            text-shadow: 0 2px 10px rgba(255, 107, 107, 0.5);
-        }
-
-        .new-record-badge {
-            background: linear-gradient(90deg, #ff9a00, #ffd700);
-            color: #1a1100;
-            font-size: 12px;
-            font-weight: 900;
-            padding: 4px 12px;
-            border-radius: 999px;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            margin-bottom: 16px;
-            box-shadow: 0 0 16px rgba(255, 215, 0, 0.6);
-            animation: pulseBtn 1.2s infinite;
-        }
-
-        .new-record-badge.hidden {
-            display: none;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 12px;
-            width: 100%;
-            margin: 14px 0 26px 0;
-        }
-
-        .stat-box {
-            background: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 18px;
-            padding: 14px 10px;
-        }
-
-        .stat-label {
-            font-size: 12px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-bottom: 4px;
-        }
-
-        .stat-value {
-            font-size: 26px;
-            font-weight: 900;
-            color: #ffffff;
-        }
-
-        .stat-value.gold {
-            color: #ffd700;
         }
     </style>
 </head>
@@ -462,21 +946,32 @@
 
 <div id="app-wrapper">
     <div id="game-container">
-        <!-- Procedural 2D Game Canvas -->
+        <!-- Procedural 2D Game Canvas (1:1 Logical Resolution 450x800) -->
         <canvas id="gameCanvas" width="450" height="800"></canvas>
 
         <!-- HUD Layer -->
         <div class="ui-layer">
             <div class="hud-bar">
-                <div class="score-pill" id="hudScorePill" style="opacity: 0;">
-                    <span id="hudScoreVal">0</span><span class="unit" id="hudScoreUnit">m</span>
+                <div class="hud-left">
+                    <div class="hud-pills-row">
+                        <div class="score-pill" id="hudScorePill" style="display: none;">
+                            <span id="hudScoreVal">0</span><span class="unit" id="hudScoreUnit">м</span>
+                        </div>
+                        <div class="coin-pill" id="hudCoinPill">
+                            <span class="coin-dot"></span>
+                            <span id="hudCoinVal">0</span>
+                        </div>
+                    </div>
+                    <div class="buff-row" id="hudBuffRow" style="display: none;">
+                        <div class="buff-badge shield hidden" id="buffShield">🛡 <span id="buffShieldText">ЩИТ</span></div>
+                        <div class="buff-badge magnet hidden" id="buffMagnet">🧲 <span id="buffMagnetTime">0s</span></div>
+                        <div class="buff-badge dash hidden" id="buffDash">★ <span id="buffDashTime">0s</span></div>
+                    </div>
                 </div>
                 <button class="icon-btn" id="muteBtn" aria-label="Toggle Sound" title="Toggle Sound">
-                    <!-- Unmuted Speaker SVG -->
                     <svg id="iconSoundOn" viewBox="0 0 24 24">
                         <path d="M14,3.23V5.29C16.89,6.15 19,8.83 19,12C19,15.17 16.89,17.84 14,18.7V20.77C18,19.86 21,16.28 21,12C21,7.72 18,4.14 14,3.23M16.5,12C16.5,10.23 15.5,8.71 14,7.97V16C15.5,15.29 16.5,13.76 16.5,12M3,9V15H7L12,20V4L7,9H3Z"/>
                     </svg>
-                    <!-- Muted Speaker SVG -->
                     <svg id="iconSoundOff" viewBox="0 0 24 24" style="display:none;">
                         <path d="M12,4L9.91,6.09L12,8.18M4.27,3L3,4.27L7.73,9H3V15H7L12,20V13.27L16.25,17.53C15.58,18.04 14.83,18.46 14,18.7V20.77C15.38,20.45 16.63,19.82 17.68,18.96L19.73,21L21,19.73L12,10.73M19,12C19,12.94 18.8,13.82 18.46,14.64L19.97,16.15C20.62,14.91 21,13.5 21,12C21,7.72 18,4.14 14,3.23V5.29C16.89,6.15 19,8.83 19,12M16.5,12C16.5,10.23 15.5,8.71 14,7.97V10.18L16.45,12.63C16.5,12.43 16.5,12.21 16.5,12Z"/>
                     </svg>
@@ -487,56 +982,159 @@
         <!-- START MENU OVERLAY -->
         <div class="overlay-screen" id="startScreen">
             <div class="title-group">
-                <h1 class="game-title" id="uiGameTitle">Lumi: Skybound</h1>
-                <p class="game-subtitle" id="uiGameSubtitle">Endless Sky Spirit</p>
+                <h1 class="game-title" id="uiGameTitle">Луми: Прыжок</h1>
+                <p class="game-subtitle" id="uiGameSubtitle">Дух Бесконечного Неба</p>
             </div>
-            <div class="best-badge">
-                <span id="uiBestLabel">★ BEST ALTITUDE:</span>
-                <span id="startBestScore">0m</span>
-            </div>
-            <div class="onboarding-box">
-                <div class="onboarding-row">
-                    <span class="onboarding-tag">PC</span>
-                    <span id="uiCtrlDesktop">A / D or ◀ ▶ Arrow Keys</span>
+            <div class="start-bottom-group">
+                <div class="best-badge">
+                    <span id="uiBestLabel">★ РЕКОРД ВЫСОТЫ:</span>
+                    <span id="startBestScore">0м</span>
                 </div>
-                <div class="onboarding-row">
-                    <span class="onboarding-tag">MOBILE</span>
-                    <span id="uiCtrlMobile">Touch Left / Right Half</span>
+                <div class="onboarding-box">
+                    <div class="onboarding-row">
+                        <span class="onboarding-tag">PC</span>
+                        <span id="uiCtrlDesktop">A / D или Стрелки ◀ ▶</span>
+                    </div>
+                    <div class="onboarding-row">
+                        <span class="onboarding-tag">MOBILE</span>
+                        <span id="uiCtrlMobile">Касание левой / правой стороны</span>
+                    </div>
+                </div>
+                <div class="start-actions">
+                    <button class="primary-btn pulse" id="playBtn">ИГРАТЬ</button>
+                    <button class="shop-open-btn" id="openShopBtn">
+                        <span>🛍</span>
+                        <span id="uiShopBtnText">МАГАЗИН</span>
+                    </button>
                 </div>
             </div>
-            <button class="primary-btn" id="playBtn">PLAY</button>
+        </div>
+
+        <!-- COMPACT SHOP OVERLAY -->
+        <div class="overlay-screen hidden" id="shopScreen">
+            <div class="shop-card">
+                <div class="shop-header">
+                    <div class="shop-title" id="uiShopTitle">МАГАЗИН</div>
+                    <div class="shop-header-right">
+                        <div class="coin-pill" style="padding: 5px 11px; font-size: 14px;">
+                            <span class="coin-dot"></span>
+                            <span id="shopCoinVal">0</span>
+                        </div>
+                        <button class="shop-close-btn" id="closeShopBtn" aria-label="Close">✕</button>
+                    </div>
+                </div>
+
+                <!-- Rewarded Ad +100 Coins Button with 5-Minute Cooldown -->
+                <button class="ad-coins-btn" id="adCoinsBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5M10,15L8,12H11V9L13,12H10V15Z"/>
+                    </svg>
+                    <span id="uiAdCoinsText">+100 монет (Реклама)</span>
+                </button>
+
+                <!-- 2 Separate Upgrade Branches (5 Levels Each) -->
+                <div class="shop-section-label" id="uiUpgradeSection">УЛУЧШЕНИЯ</div>
+                <div class="upgrades-list">
+                    <!-- Branch 1: Star Dash Duration -->
+                    <div class="upgrade-row">
+                        <div class="upgrade-info">
+                            <div class="upgrade-name" id="uiDashUpgradeName">★ Звёздный рывок</div>
+                            <div class="upgrade-desc" id="uiDashUpgradeDesc">Длительность полёта: +0.45с / ур.</div>
+                            <div class="level-dots" id="dashUpgradeDots"></div>
+                        </div>
+                        <button class="shop-action-btn buy" id="buyDashUpgradeBtn">
+                            <span class="coin-dot" style="width:11px;height:11px;"></span>
+                            <span>150</span>
+                        </button>
+                    </div>
+
+                    <!-- Branch 2: Magnet Duration & Pull Radius -->
+                    <div class="upgrade-row">
+                        <div class="upgrade-info">
+                            <div class="upgrade-name" id="uiMagnetUpgradeName">🧲 Магнит монет</div>
+                            <div class="upgrade-desc" id="uiMagnetUpgradeDesc">Время +1.5с и радиус притяжения</div>
+                            <div class="level-dots" id="magnetUpgradeDots"></div>
+                        </div>
+                        <button class="shop-action-btn buy" id="buyMagnetUpgradeBtn">
+                            <span class="coin-dot" style="width:11px;height:11px;"></span>
+                            <span>150</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Lumi Skins -->
+                <div class="shop-section-label" id="uiSkinsSection">ОБРАЗЫ ЛУМИ</div>
+                <div class="skins-list" id="skinsList"></div>
+            </div>
         </div>
 
         <!-- GAME OVER OVERLAY -->
         <div class="overlay-screen hidden" id="gameOverScreen">
             <div class="glass-card">
-                <h2 class="gameover-title" id="uiGameOverTitle">FELL DOWN!</h2>
-                <div class="new-record-badge hidden" id="newRecordBadge">★ NEW RECORD! ★</div>
+                <h2 class="gameover-title" id="uiGameOverTitle">ПАДЕНИЕ!</h2>
+                <div class="new-record-badge hidden" id="newRecordBadge">★ НОВЫЙ РЕКОРД! ★</div>
                 <div class="stats-grid">
                     <div class="stat-box">
-                        <div class="stat-label" id="uiStatAltitude">Altitude</div>
-                        <div class="stat-value" id="finalScoreVal">0m</div>
+                        <div class="stat-label" id="uiStatAltitude">Высота</div>
+                        <div class="stat-value" id="finalScoreVal">0м</div>
                     </div>
                     <div class="stat-box">
-                        <div class="stat-label" id="uiStatBest">Best</div>
-                        <div class="stat-value gold" id="finalBestVal">0m</div>
+                        <div class="stat-label" id="uiStatBest">Рекорд</div>
+                        <div class="stat-value gold" id="finalBestVal">0м</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-label" id="uiStatCoins">Монеты</div>
+                        <div class="stat-value gold" id="finalCoinsVal">+0</div>
                     </div>
                 </div>
-                <!-- Second Chance (Rewarded Video Ad) Button - Once Per Run -->
+
+                <!-- Near-Record Motivational Teaser (<15% from Best) -->
+                <div class="near-record-banner hidden" id="nearRecordBanner">
+                    🔥 Почти рекорд! Осталось совсем чуть-чуть!
+                </div>
+
+                <!-- Second Chance (Rewarded Video Ad) - Once Per Run -->
                 <button class="rewarded-btn" id="reviveBtn">
                     <svg viewBox="0 0 24 24">
                         <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5M10,15L8,12H11V9L13,12H10V15Z"/>
                     </svg>
-                    <span id="uiReviveBtnText">SECOND CHANCE</span>
+                    <span id="uiReviveBtnText">ВТОРОЙ ШАНС</span>
                 </button>
-                <button class="primary-btn" id="restartBtn" style="width:100%; padding: 15px 24px; font-size: 18px;">PLAY AGAIN</button>
+
+                <!-- Double Run Coins (Rewarded Ad) -->
+                <button class="secondary-action-btn double-coins hidden" id="doubleCoinsBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M17,10.5V7A1,1 0 0,0 16,6H4A1,1 0 0,0 3,7V17A1,1 0 0,0 4,18H16A1,1 0 0,0 17,17V13.5L21,17.5V6.5L17,10.5Z"/>
+                    </svg>
+                    <span id="uiDoubleCoinsText">Удвоить монеты (+0)</span>
+                </button>
+
+                <!-- Share Record via VK Bridge -->
+                <button class="secondary-action-btn share-btn" id="shareBtn">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M18,16.08C17.24,16.08 16.56,16.38 16.04,16.85L8.91,12.7C8.96,12.47 9,12.24 9,12C9,11.76 8.96,11.53 8.91,11.3L15.96,7.19C16.5,7.69 17.21,8 18,8A3,3 0 0,0 21,5A3,3 0 0,0 18,2A3,3 0 0,0 15,5C15,5.24 15.04,5.47 15.09,5.7L8.04,9.81C7.5,9.31 6.79,9 6,9A3,3 0 0,0 3,12A3,3 0 0,0 6,15C6.79,15 7.5,14.69 8.04,14.19L15.16,18.34C15.11,18.55 15.08,18.77 15.08,19C15.08,20.61 16.39,21.91 18,21.91C19.61,21.91 20.92,20.61 20.92,19A2.92,2.92 0 0,0 18,16.08Z"/>
+                    </svg>
+                    <span id="uiShareBtnText">Поделиться рекордом (+150 🪙)</span>
+                </button>
+
+                <div class="gameover-bottom-row">
+                    <button class="primary-btn" id="restartBtn" style="padding: 14px 18px; font-size: 16px;">ЕЩЁ РАЗ</button>
+                    <button class="shop-open-btn" id="gameOverShopBtn" style="flex: 0.72; padding: 13px 10px; font-size: 13px;">
+                        <span>🛍</span>
+                        <span id="uiGoShopText">МАГАЗИН</span>
+                    </button>
+                </div>
             </div>
         </div>
 
-        <!-- SIMULATED AD OVERLAY (FOR PREVIEW / LOCAL TESTING) -->
-        <div class="sim-ad-overlay hidden" id="simAdOverlay">
-            <div class="sim-ad-spinner"></div>
-            <div class="sim-ad-label" id="simAdText">Rewarded Video Preview...</div>
+        <!-- TOAST NOTIFICATION -->
+        <div class="toast-banner" id="toastBanner"></div>
+
+        <!-- NEUTRAL REWARD LOADER OVERLAY -->
+        <div class="ad-loader-overlay hidden" id="adLoaderOverlay">
+            <div class="ad-loader-box">
+                <div class="ad-loader-spinner"></div>
+            </div>
         </div>
     </div>
 </div>
@@ -544,23 +1142,22 @@
 <script>
 /**
  * ============================================================================
- * 1. CORE CONSTANTS, MATH HELPERS & LOCALIZATION (RU / EN)
+ * 1. CORE CONSTANTS, MATH HELPERS, BALANCED ECONOMY & LOCALIZATION (RU / EN)
  * ============================================================================
  */
 const LOGICAL_WIDTH = 450;
 const LOGICAL_HEIGHT = 800;
 
 // Normalized 60 FPS Physics Constants
-// Max Jump Height H_max = (-13.6^2) / (2 * 0.42) = 184.96 / 0.84 ≈ 220.19px
+// Max Jump Height H_max = (-13.6^2) / (2 * 0.42) ≈ 220.19px
 const GRAVITY = 0.42;
 const JUMP_VELOCITY = -13.6;
 const MIN_GAP_Y = 55;
-const MAX_GAP_Y = 175; // Strictly below 220px for 100% guaranteed reachability
+const MAX_GAP_Y = 175;
 
 const GAME_STATE = {
     START_MENU: 'START_MENU',
     PLAYING: 'PLAYING',
-    PAUSED: 'PAUSED',
     GAME_OVER: 'GAME_OVER'
 };
 
@@ -569,6 +1166,100 @@ const PLATFORM_TYPE = {
     MOVING: 'MOVING',
     BREAKABLE: 'BREAKABLE'
 };
+
+const POWERUP_TYPE = {
+    NONE: 'NONE',
+    STAR_DASH: 'STAR_DASH',
+    MAGNET: 'MAGNET',
+    SHIELD: 'SHIELD'
+};
+
+// Rebalanced 5 Lumi Color Skins (0 -> 450 -> 900 -> 1500 -> 2500 coins)
+const SKINS = [
+    {
+        id: 'mint',
+        price: 0,
+        nameRu: 'Мятный Луми',
+        nameEn: 'Mint Lumi',
+        passiveRu: 'Классический дух неба',
+        passiveEn: 'Classic skybound spirit',
+        gradStops: ['#ffffff', '#a8ff78', '#78ffd6', '#00d2ff'],
+        auraOuter: 'rgba(0, 210, 255, 0.14)',
+        auraInner: 'rgba(56, 239, 125, 0.22)',
+        swatchCss: 'linear-gradient(135deg, #a8ff78, #00d2ff)',
+        startShield: false,
+        passiveMagnetRadius: 0,
+        extraDashSec: 0
+    },
+    {
+        id: 'solar',
+        price: 450,
+        nameRu: 'Солнечный Дух',
+        nameEn: 'Solar Spirit',
+        passiveRu: 'Лёгкое притягивание монет',
+        passiveEn: 'Gentle passive coin pull',
+        gradStops: ['#ffffff', '#fff3b0', '#ffbe0b', '#fb5607'],
+        auraOuter: 'rgba(255, 190, 11, 0.15)',
+        auraInner: 'rgba(255, 140, 0, 0.24)',
+        swatchCss: 'linear-gradient(135deg, #fff3b0, #fb5607)',
+        startShield: false,
+        passiveMagnetRadius: 95,
+        extraDashSec: 0
+    },
+    {
+        id: 'sakura',
+        price: 900,
+        nameRu: 'Сакура',
+        nameEn: 'Sakura Bloom',
+        passiveRu: 'Старт со щитом от 1 падения',
+        passiveEn: 'Starts with 1-fall bubble shield',
+        gradStops: ['#ffffff', '#ffd6e8', '#ff85a1', '#ff4d6d'],
+        auraOuter: 'rgba(255, 133, 161, 0.15)',
+        auraInner: 'rgba(255, 77, 109, 0.23)',
+        swatchCss: 'linear-gradient(135deg, #ffd6e8, #ff4d6d)',
+        startShield: true,
+        passiveMagnetRadius: 0,
+        extraDashSec: 0
+    },
+    {
+        id: 'amethyst',
+        price: 1500,
+        nameRu: 'Неон Аметист',
+        nameEn: 'Neon Amethyst',
+        passiveRu: 'Звёздный рывок длится +0.8 сек',
+        passiveEn: 'Star Dash lasts +0.8s longer',
+        gradStops: ['#ffffff', '#e0c3fc', '#b16cea', '#6a11cb'],
+        auraOuter: 'rgba(177, 108, 234, 0.16)',
+        auraInner: 'rgba(106, 17, 203, 0.25)',
+        swatchCss: 'linear-gradient(135deg, #e0c3fc, #6a11cb)',
+        startShield: false,
+        passiveMagnetRadius: 0,
+        extraDashSec: 0.8
+    },
+    {
+        id: 'astral',
+        price: 2500,
+        nameRu: 'Астрал',
+        nameEn: 'Astral Prism',
+        passiveRu: 'Щит + магнит + рывок +0.5с',
+        passiveEn: 'Shield + coin pull + 0.5s dash',
+        gradStops: ['#ffffff', '#caf0f8', '#48cae4', '#3a86ff'],
+        auraOuter: 'rgba(72, 202, 228, 0.16)',
+        auraInner: 'rgba(58, 134, 255, 0.26)',
+        swatchCss: 'linear-gradient(135deg, #caf0f8, #3a86ff)',
+        startShield: true,
+        passiveMagnetRadius: 85,
+        extraDashSec: 0.5
+    }
+];
+
+// Smooth 5-Level Upgrade Pricing (150 -> 2000 coins) for each independent branch
+const UPGRADE_COSTS = [150, 350, 700, 1250, 2000];
+const MAX_UPGRADE_LEVEL = UPGRADE_COSTS.length;
+const SHARE_REWARD_COINS = 150;
+const SHOP_AD_REWARD_COINS = 100;
+const SHOP_AD_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+const SHOP_AD_LS_KEY = 'lumi_shop_ad_last_ts';
 
 function lerp(a, b, t) {
     return a + (b - a) * Math.max(0, Math.min(1, t));
@@ -597,13 +1288,20 @@ function lerpColorHex(hexA, hexB, t) {
     return `rgb(${r}, ${g}, ${bl})`;
 }
 
+function formatMMSS(ms) {
+    const totalSec = Math.max(0, Math.ceil(ms / 1000));
+    const mins = Math.floor(totalSec / 60);
+    const secs = totalSec % 60;
+    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
 // 5-Stage Dynamic Time-of-Day Sky Gradient Keyframes
 const SKY_STAGES = [
-    { alt: 0,    top: '#ff9a8b', bottom: '#6a93cb' }, // Warm Morning Sky
-    { alt: 1500, top: '#00c6ff', bottom: '#0072ff' }, // Bright Cyan Day
-    { alt: 3500, top: '#4b1248', bottom: '#f0c27b' }, // Purple Sunset
-    { alt: 5500, top: '#0f2027', bottom: '#203a43' }, // Deep Starry Night
-    { alt: 8000, top: '#05050a', bottom: '#1a0933' }  // Open Space & Neon Nebulae
+    { alt: 0,    top: '#ff9a8b', bottom: '#6a93cb' },
+    { alt: 1500, top: '#00c6ff', bottom: '#0072ff' },
+    { alt: 3500, top: '#4b1248', bottom: '#f0c27b' },
+    { alt: 5500, top: '#0f2027', bottom: '#203a43' },
+    { alt: 8000, top: '#05050a', bottom: '#1a0933' }
 ];
 
 function getSkyGradientColors(altitude) {
@@ -635,17 +1333,40 @@ const I18N = {
         ctrlDesktop: 'A / D или Стрелки ◀ ▶',
         ctrlMobile: 'Касание левой / правой стороны',
         playBtn: 'ИГРАТЬ',
+        shopBtn: 'МАГАЗИН',
+        shopTitle: 'МАГАЗИН',
+        adCoinsBtn: `+${SHOP_AD_REWARD_COINS} монет (Реклама)`,
+        adCoinsCooldown: `+${SHOP_AD_REWARD_COINS} монет • доступно через {time}`,
+        upgradeSection: 'УЛУЧШЕНИЯ',
+        dashUpgradeName: '★ Звёздный рывок',
+        dashUpgradeDesc: 'Длительность полёта: +0.45с / ур.',
+        magnetUpgradeName: '🧲 Магнит монет',
+        magnetUpgradeDesc: 'Время +1.5с и радиус притяжения',
+        upgradeMax: 'МАКС',
+        skinsSection: 'ОБРАЗЫ ЛУМИ',
+        equip: 'ВЫБРАТЬ',
+        equipped: 'НАДЕТ',
         gameOverTitle: 'ПАДЕНИЕ!',
         newRecord: '★ НОВЫЙ РЕКОРД! ★',
+        nearRecord: '🔥 Почти рекорд! Осталось совсем чуть-чуть!',
         statAltitude: 'Высота',
         statBest: 'Рекорд',
+        statCoins: 'Монеты',
         reviveBtn: 'ВТОРОЙ ШАНС',
+        doubleCoinsPrefix: 'Удвоить монеты',
+        shareWithReward: `Поделиться рекордом (+${SHARE_REWARD_COINS} 🪙)`,
+        sharePlain: 'Поделиться рекордом',
         restartBtn: 'ЕЩЁ РАЗ',
         unit: 'м',
         tutLeft: '◀ ВЛЕВО',
         tutRight: 'ВПРАВО ▶',
-        simRewardAd: 'Видеореклама за награду...',
-        simInterstitialAd: 'Полноэкранная реклама...'
+        buffShield: 'ЩИТ',
+        shieldSavedToast: '🛡 Щит спас от падения!',
+        adCoinsToast: `🪙 +${SHOP_AD_REWARD_COINS} монет получено!`,
+        doubleCoinsToast: '🪙 Монеты за забег удвоены!',
+        shareRewardToast: `🎉 Спасибо! +${SHARE_REWARD_COINS} монет!`,
+        shareDoneToast: '🚀 Рекорд отправлен друзьям!',
+        sharePostMsg: 'Я взлетел на {score}м в игре «Луми: Прыжок»! Сможешь выше?'
     },
     en: {
         docTitle: 'Lumi: Skybound Spirit',
@@ -655,17 +1376,40 @@ const I18N = {
         ctrlDesktop: 'A / D or ◀ ▶ Arrow Keys',
         ctrlMobile: 'Touch Left / Right Half',
         playBtn: 'PLAY',
+        shopBtn: 'SHOP',
+        shopTitle: 'SHOP',
+        adCoinsBtn: `+${SHOP_AD_REWARD_COINS} Coins (Ad)`,
+        adCoinsCooldown: `+${SHOP_AD_REWARD_COINS} Coins • ready in {time}`,
+        upgradeSection: 'UPGRADES',
+        dashUpgradeName: '★ Star Dash',
+        dashUpgradeDesc: 'Flight duration: +0.45s / lvl',
+        magnetUpgradeName: '🧲 Coin Magnet',
+        magnetUpgradeDesc: '+1.5s duration & wider pull radius',
+        upgradeMax: 'MAX',
+        skinsSection: 'LUMI SKINS',
+        equip: 'EQUIP',
+        equipped: 'ACTIVE',
         gameOverTitle: 'FELL DOWN!',
         newRecord: '★ NEW RECORD! ★',
+        nearRecord: '🔥 Almost a record! Just a tiny bit more!',
         statAltitude: 'Altitude',
         statBest: 'Best',
+        statCoins: 'Coins',
         reviveBtn: 'SECOND CHANCE',
+        doubleCoinsPrefix: 'Double Run Coins',
+        shareWithReward: `Share Record (+${SHARE_REWARD_COINS} 🪙)`,
+        sharePlain: 'Share Record',
         restartBtn: 'PLAY AGAIN',
         unit: 'm',
         tutLeft: '◀ LEFT',
         tutRight: 'RIGHT ▶',
-        simRewardAd: 'Rewarded Video Preview...',
-        simInterstitialAd: 'Interstitial Ad Preview...'
+        buffShield: 'SHIELD',
+        shieldSavedToast: '🛡 Shield saved you!',
+        adCoinsToast: `🪙 +${SHOP_AD_REWARD_COINS} coins received!`,
+        doubleCoinsToast: '🪙 Run coins doubled!',
+        shareRewardToast: `🎉 Shared! +${SHARE_REWARD_COINS} coins!`,
+        shareDoneToast: '🚀 Record shared!',
+        sharePostMsg: 'I climbed {score}m in Lumi: Skybound! Can you beat my altitude?'
     }
 };
 
@@ -689,37 +1433,125 @@ function t(key) {
     return dict[key] || I18N.en[key] || key;
 }
 
-function applyLocalization() {
-    document.title = t('docTitle');
-    document.documentElement.lang = currentLang;
+/**
+ * ============================================================================
+ * 2. PLAYER ECONOMY & PERSISTENCE (localStorage + VK Storage)
+ * ============================================================================
+ */
+const SaveData = {
+    coins: 0,
+    ownedSkins: ['mint'],
+    selectedSkin: 'mint',
+    dashUpgradeLevel: 0,
+    magnetUpgradeLevel: 0,
+    shareRewardClaimed: false
+};
 
-    const setEl = (id, text) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = text;
-    };
+let lastShopAdTimestamp = 0;
 
-    setEl('uiGameTitle', t('gameTitle'));
-    setEl('uiGameSubtitle', t('gameSubtitle'));
-    setEl('uiBestLabel', t('bestLabel'));
-    setEl('uiCtrlDesktop', t('ctrlDesktop'));
-    setEl('uiCtrlMobile', t('ctrlMobile'));
-    setEl('playBtn', t('playBtn'));
-    setEl('uiGameOverTitle', t('gameOverTitle'));
-    setEl('newRecordBadge', t('newRecord'));
-    setEl('uiStatAltitude', t('statAltitude'));
-    setEl('uiStatBest', t('statBest'));
-    setEl('uiReviveBtnText', t('reviveBtn'));
-    setEl('restartBtn', t('restartBtn'));
-    setEl('hudScoreUnit', t('unit'));
+function getCurrentSkin() {
+    return SKINS.find(s => s.id === SaveData.selectedSkin) || SKINS[0];
+}
 
-    if (typeof refreshScoreDisplays === 'function') {
-        refreshScoreDisplays();
+function getShopAdRemainingMs() {
+    if (!lastShopAdTimestamp) return 0;
+    const elapsed = Date.now() - lastShopAdTimestamp;
+    if (elapsed < 0) return 0; // Guard against clock rollback
+    return Math.max(0, SHOP_AD_COOLDOWN_MS - elapsed);
+}
+
+function recordShopAdClaimed() {
+    lastShopAdTimestamp = Date.now();
+    try {
+        localStorage.setItem(SHOP_AD_LS_KEY, String(lastShopAdTimestamp));
+    } catch (e) {}
+}
+
+function loadLocalSave() {
+    try {
+        const savedBest = parseInt(localStorage.getItem('lumi_jump_highscore'), 10);
+        if (!isNaN(savedBest) && savedBest > 0) bestScore = savedBest;
+
+        const savedAdTs = parseInt(localStorage.getItem(SHOP_AD_LS_KEY), 10);
+        if (!isNaN(savedAdTs) && savedAdTs > 0) {
+            lastShopAdTimestamp = savedAdTs;
+        }
+
+        const raw = localStorage.getItem('lumi_save_v1');
+        if (raw) {
+            mergeSaveObject(JSON.parse(raw));
+        }
+    } catch (e) {}
+}
+
+function mergeSaveObject(parsed) {
+    if (!parsed || typeof parsed !== 'object') return;
+    if (typeof parsed.coins === 'number' && !isNaN(parsed.coins) && parsed.coins > SaveData.coins) {
+        SaveData.coins = Math.floor(parsed.coins);
     }
+    if (Array.isArray(parsed.ownedSkins)) {
+        for (let i = 0; i < parsed.ownedSkins.length; i++) {
+            const id = parsed.ownedSkins[i];
+            if (SKINS.some(s => s.id === id) && !SaveData.ownedSkins.includes(id)) {
+                SaveData.ownedSkins.push(id);
+            }
+        }
+    }
+    if (typeof parsed.selectedSkin === 'string' && SaveData.ownedSkins.includes(parsed.selectedSkin)) {
+        SaveData.selectedSkin = parsed.selectedSkin;
+    }
+
+    // Separate upgrade branches with backward-compatible migration from legacy `upgradeLevel`
+    if (typeof parsed.dashUpgradeLevel === 'number' && !isNaN(parsed.dashUpgradeLevel)) {
+        SaveData.dashUpgradeLevel = Math.max(
+            SaveData.dashUpgradeLevel,
+            Math.min(MAX_UPGRADE_LEVEL, Math.floor(parsed.dashUpgradeLevel))
+        );
+    } else if (typeof parsed.upgradeLevel === 'number' && !isNaN(parsed.upgradeLevel)) {
+        SaveData.dashUpgradeLevel = Math.max(
+            SaveData.dashUpgradeLevel,
+            Math.min(MAX_UPGRADE_LEVEL, Math.floor(parsed.upgradeLevel))
+        );
+    }
+
+    if (typeof parsed.magnetUpgradeLevel === 'number' && !isNaN(parsed.magnetUpgradeLevel)) {
+        SaveData.magnetUpgradeLevel = Math.max(
+            SaveData.magnetUpgradeLevel,
+            Math.min(MAX_UPGRADE_LEVEL, Math.floor(parsed.magnetUpgradeLevel))
+        );
+    } else if (typeof parsed.upgradeLevel === 'number' && !isNaN(parsed.upgradeLevel)) {
+        SaveData.magnetUpgradeLevel = Math.max(
+            SaveData.magnetUpgradeLevel,
+            Math.min(MAX_UPGRADE_LEVEL, Math.floor(parsed.upgradeLevel))
+        );
+    }
+
+    if (parsed.shareRewardClaimed) {
+        SaveData.shareRewardClaimed = true;
+    }
+}
+
+function persistProgress() {
+    const payload = JSON.stringify({
+        coins: SaveData.coins,
+        ownedSkins: SaveData.ownedSkins,
+        selectedSkin: SaveData.selectedSkin,
+        dashUpgradeLevel: SaveData.dashUpgradeLevel,
+        magnetUpgradeLevel: SaveData.magnetUpgradeLevel,
+        shareRewardClaimed: SaveData.shareRewardClaimed
+    });
+
+    try {
+        localStorage.setItem('lumi_save_v1', payload);
+        localStorage.setItem('lumi_jump_highscore', String(bestScore));
+    } catch (e) {}
+
+    VKBridgeWrapper.saveCloudData(bestScore, payload);
 }
 
 /**
  * ============================================================================
- * 2. PROCEDURAL WEB AUDIO API SYNTHESIZER (ZERO EXTERNAL MP3s)
+ * 3. PROCEDURAL WEB AUDIO API SYNTHESIZER
  * ============================================================================
  */
 class SoundManager {
@@ -795,6 +1627,7 @@ class SoundManager {
         }
     }
 
+    // Soft Jelly Bloop (240Hz -> 580Hz over 0.14s)
     playJump() {
         if (!this.canPlay()) return;
         const now = this.ctx.currentTime;
@@ -814,43 +1647,172 @@ class SoundManager {
         osc.stop(now + 0.15);
     }
 
+    // Modern, velvety, tactile indie pickup bloom (fixed pitch, cozy glass-marimba droplet)
+    playCoin() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+
+        // Dynamic low-pass filter simulates warm acoustic damping (zero 8-bit/synth harshness)
+        const filter = this.ctx.createBiquadFilter();
+        filter.type = 'lowpass';
+        filter.frequency.setValueAtTime(1400, now);
+        filter.frequency.exponentialRampToValueAtTime(520, now + 0.25);
+        filter.Q.setValueAtTime(0.6, now);
+        filter.connect(this.ctx.destination);
+
+        // 1. Velvety warm droplet body (gentle upward bloom into B4 = 493.88Hz)
+        const bodyOsc = this.ctx.createOscillator();
+        const bodyGain = this.ctx.createGain();
+        bodyOsc.type = 'sine';
+        bodyOsc.frequency.setValueAtTime(425, now);
+        bodyOsc.frequency.exponentialRampToValueAtTime(493.88, now + 0.032);
+
+        bodyGain.gain.setValueAtTime(0.0001, now);
+        bodyGain.gain.linearRampToValueAtTime(0.135, now + 0.014);
+        bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+
+        bodyOsc.connect(bodyGain);
+        bodyGain.connect(filter);
+        bodyOsc.start(now);
+        bodyOsc.stop(now + 0.25);
+
+        // 2. Silky harmonic fifth shimmer (F#5 = 739.99Hz, blooming together for plush atmosphere)
+        const shimmerOsc = this.ctx.createOscillator();
+        const shimmerGain = this.ctx.createGain();
+        const tShim = now + 0.008;
+        shimmerOsc.type = 'sine';
+        shimmerOsc.frequency.setValueAtTime(739.99, tShim);
+
+        shimmerGain.gain.setValueAtTime(0.0001, tShim);
+        shimmerGain.gain.linearRampToValueAtTime(0.055, tShim + 0.016);
+        shimmerGain.gain.exponentialRampToValueAtTime(0.0001, tShim + 0.21);
+
+        shimmerOsc.connect(shimmerGain);
+        shimmerGain.connect(filter);
+        shimmerOsc.start(tShim);
+        shimmerOsc.stop(tShim + 0.22);
+
+        // 3. Subtle cozy sub-warmth (B3 = 246.94Hz) for tactile softness
+        const warmOsc = this.ctx.createOscillator();
+        const warmGain = this.ctx.createGain();
+        warmOsc.type = 'sine';
+        warmOsc.frequency.setValueAtTime(246.94, now);
+
+        warmGain.gain.setValueAtTime(0.0001, now);
+        warmGain.gain.linearRampToValueAtTime(0.05, now + 0.012);
+        warmGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
+
+        warmOsc.connect(warmGain);
+        warmGain.connect(filter);
+        warmOsc.start(now);
+        warmOsc.stop(now + 0.15);
+    }
+
+    playPowerUp() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        const freqs = [440, 659.25, 880];
+        freqs.forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const t0 = now + idx * 0.055;
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(f, t0);
+            gain.gain.setValueAtTime(0.16, t0);
+            gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.22);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + 0.23);
+        });
+    }
+
+    playShieldSave() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(300, now);
+        osc.frequency.exponentialRampToValueAtTime(920, now + 0.26);
+        gain.gain.setValueAtTime(0.28, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.3);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.31);
+    }
+
+    playCash() {
+        if (!this.canPlay()) return;
+        const now = this.ctx.currentTime;
+        [784, 1046.5].forEach((f, idx) => {
+            const osc = this.ctx.createOscillator();
+            const gain = this.ctx.createGain();
+            const t0 = now + idx * 0.07;
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, t0);
+            gain.gain.setValueAtTime(0.18, t0);
+            gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.2);
+            osc.connect(gain);
+            gain.connect(this.ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + 0.21);
+        });
+    }
+
     playShatter() {
         if (!this.canPlay()) return;
         const now = this.ctx.currentTime;
 
+        // Soft, muffled sandy crumble puff (gentle low-pass sweep, no harsh hiss)
         if (this.noiseBuffer) {
             const noise = this.ctx.createBufferSource();
             noise.buffer = this.noiseBuffer;
 
             const filter = this.ctx.createBiquadFilter();
-            filter.type = 'bandpass';
-            filter.frequency.setValueAtTime(800, now);
-            filter.Q.setValueAtTime(1.5, now);
+            filter.type = 'lowpass';
+            filter.frequency.setValueAtTime(720, now);
+            filter.frequency.exponentialRampToValueAtTime(220, now + 0.14);
+            filter.Q.setValueAtTime(0.7, now);
 
             const nGain = this.ctx.createGain();
-            nGain.gain.setValueAtTime(0.28, now);
-            nGain.gain.exponentialRampToValueAtTime(0.01, now + 0.12);
+            nGain.gain.setValueAtTime(0.0001, now);
+            nGain.gain.linearRampToValueAtTime(0.085, now + 0.008);
+            nGain.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
 
             noise.connect(filter);
             filter.connect(nGain);
             nGain.connect(this.ctx.destination);
             noise.start(now);
-            noise.stop(now + 0.12);
+            noise.stop(now + 0.15);
         }
 
-        const osc = this.ctx.createOscillator();
-        const oGain = this.ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160, now);
-        osc.frequency.exponentialRampToValueAtTime(55, now + 0.14);
+        // Two soft, muted woody-clay tumble taps for clear yet comfortable break feedback
+        const taps = [
+            { delay: 0.0,   startHz: 185, endHz: 88, peak: 0.11,  dur: 0.11 },
+            { delay: 0.036, startHz: 145, endHz: 72, peak: 0.065, dur: 0.10 }
+        ];
 
-        oGain.gain.setValueAtTime(0.26, now);
-        oGain.gain.exponentialRampToValueAtTime(0.005, now + 0.15);
+        for (let i = 0; i < taps.length; i++) {
+            const tap = taps[i];
+            const t0 = now + tap.delay;
+            const osc = this.ctx.createOscillator();
+            const oGain = this.ctx.createGain();
 
-        osc.connect(oGain);
-        oGain.connect(this.ctx.destination);
-        osc.start(now);
-        osc.stop(now + 0.15);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(tap.startHz, t0);
+            osc.frequency.exponentialRampToValueAtTime(tap.endHz, t0 + tap.dur);
+
+            oGain.gain.setValueAtTime(0.0001, t0);
+            oGain.gain.linearRampToValueAtTime(tap.peak, t0 + 0.006);
+            oGain.gain.exponentialRampToValueAtTime(0.001, t0 + tap.dur);
+
+            osc.connect(oGain);
+            oGain.connect(this.ctx.destination);
+            osc.start(t0);
+            osc.stop(t0 + tap.dur + 0.01);
+        }
     }
 
     playStarDash() {
@@ -900,7 +1862,7 @@ const soundManager = new SoundManager();
 
 /**
  * ============================================================================
- * 3. OFFICIAL VK BRIDGE SDK WRAPPER (WITH LOCAL PREVIEW FALLBACK)
+ * 4. OFFICIAL VK BRIDGE SDK WRAPPER (ADS, STORAGE, SHARE & HAPTICS)
  * ============================================================================
  */
 const VKBridgeWrapper = {
@@ -917,7 +1879,7 @@ const VKBridgeWrapper = {
 
             this.bridge.send('VKWebAppInit')
                 .then(() => {
-                    this.loadBestScore();
+                    this.loadCloudData();
                     this.preloadNativeAds();
                 })
                 .catch(() => {
@@ -932,37 +1894,79 @@ const VKBridgeWrapper = {
         this.bridge.send('VKWebAppCheckNativeAds', { ad_format: 'interstitial' }).catch(() => {});
     },
 
-    loadBestScore() {
+    loadCloudData() {
         if (!this.bridge || !this.isVKEnv) return;
-        this.bridge.send('VKWebAppStorageGet', { keys: ['best_score'] })
+        this.bridge.send('VKWebAppStorageGet', { keys: ['best_score', 'lumi_save_v1'] })
             .then((data) => {
                 if (data && Array.isArray(data.keys)) {
-                    const entry = data.keys.find(k => k.key === 'best_score');
-                    const cloudVal = entry ? parseInt(entry.value, 10) : 0;
-                    if (!isNaN(cloudVal) && cloudVal > bestScore) {
-                        bestScore = cloudVal;
+                    const bestEntry = data.keys.find(k => k.key === 'best_score');
+                    const cloudBest = bestEntry ? parseInt(bestEntry.value, 10) : 0;
+                    if (!isNaN(cloudBest) && cloudBest > bestScore) {
+                        bestScore = cloudBest;
+                    }
+
+                    const saveEntry = data.keys.find(k => k.key === 'lumi_save_v1');
+                    if (saveEntry && saveEntry.value) {
                         try {
-                            localStorage.setItem('lumi_jump_highscore', String(bestScore));
+                            mergeSaveObject(JSON.parse(saveEntry.value));
                         } catch (e) {}
-                        if (typeof refreshScoreDisplays === 'function') {
-                            refreshScoreDisplays();
-                        }
+                    }
+
+                    try {
+                        localStorage.setItem('lumi_jump_highscore', String(bestScore));
+                        localStorage.setItem('lumi_save_v1', JSON.stringify(SaveData));
+                    } catch (e) {}
+
+                    if (typeof refreshAllUI === 'function') {
+                        refreshAllUI();
                     }
                 }
             })
             .catch(() => {});
     },
 
-    saveBestScore(newBest) {
+    saveCloudData(newBest, saveJsonStr) {
+        if (!this.bridge || !this.isVKEnv) return;
+        this.bridge.send('VKWebAppStorageSet', {
+            key: 'best_score',
+            value: String(newBest)
+        }).catch(() => {});
+
+        if (saveJsonStr) {
+            this.bridge.send('VKWebAppStorageSet', {
+                key: 'lumi_save_v1',
+                value: saveJsonStr
+            }).catch(() => {});
+        }
+    },
+
+    haptic(style = 'light') {
         try {
-            localStorage.setItem('lumi_jump_highscore', String(newBest));
+            if (this.bridge && this.isVKEnv) {
+                this.bridge.send('VKWebAppTapticImpactOccurred', { style }).catch(() => {});
+            } else if (navigator.vibrate) {
+                navigator.vibrate(style === 'heavy' ? 28 : style === 'medium' ? 18 : 10);
+            }
         } catch (e) {}
+    },
+
+    shareRecord(altitude, onSharedCallback) {
+        const message = t('sharePostMsg').replace('{score}', String(altitude));
 
         if (this.bridge && this.isVKEnv) {
-            this.bridge.send('VKWebAppStorageSet', {
-                key: 'best_score',
-                value: String(newBest)
-            }).catch(() => {});
+            this.bridge.send('VKWebAppShowWallPostBox', { message })
+                .then(() => {
+                    if (typeof onSharedCallback === 'function') onSharedCallback();
+                })
+                .catch(() => {
+                    this.bridge.send('VKWebAppShare', { link: window.location.href.split('?')[0] })
+                        .then(() => {
+                            if (typeof onSharedCallback === 'function') onSharedCallback();
+                        })
+                        .catch(() => {});
+                });
+        } else {
+            if (typeof onSharedCallback === 'function') onSharedCallback();
         }
     },
 
@@ -987,10 +1991,10 @@ const VKBridgeWrapper = {
                     finishAd(Boolean(data && data.result));
                 })
                 .catch(() => {
-                    this.runSimulatedAd(t('simRewardAd'), () => finishAd(true));
+                    this.runNeutralRewardLoader(() => finishAd(true));
                 });
         } else {
-            this.runSimulatedAd(t('simRewardAd'), () => finishAd(true));
+            this.runNeutralRewardLoader(() => finishAd(true));
         }
     },
 
@@ -998,6 +2002,12 @@ const VKBridgeWrapper = {
         if (this.adInProgress) return;
         const now = Date.now();
         if (now - this.lastInterstitialTime < 60000) {
+            if (typeof onCloseCallback === 'function') onCloseCallback();
+            return;
+        }
+
+        // Outside VK Mini Apps: silently continue without any overlay
+        if (!this.bridge || !this.isVKEnv) {
             if (typeof onCloseCallback === 'function') onCloseCallback();
             return;
         }
@@ -1014,25 +2024,19 @@ const VKBridgeWrapper = {
             this.preloadNativeAds();
         };
 
-        if (this.bridge && this.isVKEnv) {
-            this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
-                .then(() => finishAd())
-                .catch(() => finishAd());
-        } else {
-            this.runSimulatedAd(t('simInterstitialAd'), () => finishAd());
-        }
+        this.bridge.send('VKWebAppShowNativeAds', { ad_format: 'interstitial' })
+            .then(() => finishAd())
+            .catch(() => finishAd());
     },
 
-    runSimulatedAd(labelText, onComplete) {
-        const overlay = document.getElementById('simAdOverlay');
-        const label = document.getElementById('simAdText');
-        if (overlay && label) {
-            label.textContent = labelText;
+    runNeutralRewardLoader(onComplete) {
+        const overlay = document.getElementById('adLoaderOverlay');
+        if (overlay) {
             overlay.classList.remove('hidden');
             setTimeout(() => {
                 overlay.classList.add('hidden');
                 if (typeof onComplete === 'function') onComplete();
-            }, 950);
+            }, 800);
         } else {
             if (typeof onComplete === 'function') onComplete();
         }
@@ -1041,12 +2045,11 @@ const VKBridgeWrapper = {
 
 /**
  * ============================================================================
- * 3.5. MOBILE 60+ FPS RENDER CACHE (ZERO OFFSCREEN TEXTURES & ZERO ALLOCATIONS)
+ * 5. MOBILE 60+ FPS RENDER CACHE (ZERO OFFSCREEN TEXTURES & ZERO ARTIFACTS)
  * ============================================================================
- * Caches reusable CanvasGradient objects directly on the main 2D context and
- * provides a pure-arc capsule path helper. This eliminates all offscreen canvas
- * `drawImage` UV-scaling glitches and Skia texture-atlas bleeding on Android
- * Mali GPUs while keeping zero per-frame gradient allocations for locked 60 FPS.
+ * Uses pure geometric arcs/capsules and pre-cached CanvasGradient objects
+ * evaluated in local space. Zero `ctx.shadowBlur`, zero offscreen `<canvas>`
+ * scaling artifacts on Android Mali GPUs, and zero per-frame gradient allocations.
  */
 function traceCapsule(ctx, x, y, w, h) {
     const r = Math.min(h * 0.5, w * 0.5);
@@ -1059,18 +2062,20 @@ function traceCapsule(ctx, x, y, w, h) {
 const RenderCache = {
     skyGrad: null,
     lastSkyQuantizedAlt: -9999,
-    lumiGradNormal: null,
+    skinGradients: {},
     lumiGradBoost: null,
 
     init(mainCtx) {
         const r = 20;
-        // Cached in Lumi's local (0,0) coordinate space so it scales automatically with ctx.scale()
-        const normGrad = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
-        normGrad.addColorStop(0, '#ffffff');
-        normGrad.addColorStop(0.42, '#a8ff78');
-        normGrad.addColorStop(0.8, '#78ffd6');
-        normGrad.addColorStop(1, '#00d2ff');
-        this.lumiGradNormal = normGrad;
+        for (let i = 0; i < SKINS.length; i++) {
+            const sk = SKINS[i];
+            const g = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
+            g.addColorStop(0, sk.gradStops[0]);
+            g.addColorStop(0.42, sk.gradStops[1]);
+            g.addColorStop(0.8, sk.gradStops[2]);
+            g.addColorStop(1, sk.gradStops[3]);
+            this.skinGradients[sk.id] = g;
+        }
 
         const boostGrad = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
         boostGrad.addColorStop(0, '#ffffff');
@@ -1083,7 +2088,6 @@ const RenderCache = {
     },
 
     getSkyGradient(mainCtx, altitude) {
-        // Only recreate the CanvasGradient object when altitude changes by >= 20m
         const quantized = Math.floor(altitude / 20) * 20;
         if (quantized !== this.lastSkyQuantizedAlt || !this.skyGrad) {
             this.lastSkyQuantizedAlt = quantized;
@@ -1099,17 +2103,14 @@ const RenderCache = {
 
 /**
  * ============================================================================
- * 4. GAME ENGINE, 1:1 MOBILE RESOLUTION & ENTITIES
+ * 6. GAME ENGINE, CANVAS SETUP & ENTITIES
  * ============================================================================
  */
 const canvas = document.getElementById('gameCanvas');
-// Standard double-buffered opaque context (no `desynchronized: true` to prevent Android Mali tile glitches)
+// Standard double-buffered opaque context (NO desynchronized: true to prevent Mali tile glitches)
 const ctx = canvas.getContext('2d', { alpha: false });
 
-// Use 1:1 native logical resolution (450x800) to keep pixel fill-rate light for locked 60 FPS
-let currentDpr = 1;
 function configureCanvasResolution() {
-    currentDpr = 1;
     if (canvas.width !== LOGICAL_WIDTH || canvas.height !== LOGICAL_HEIGHT) {
         canvas.width = LOGICAL_WIDTH;
         canvas.height = LOGICAL_HEIGHT;
@@ -1118,52 +2119,87 @@ function configureCanvasResolution() {
 }
 configureCanvasResolution();
 
-// UI Elements
+// DOM References
 const hudScorePill = document.getElementById('hudScorePill');
 const hudScoreVal = document.getElementById('hudScoreVal');
+const hudCoinVal = document.getElementById('hudCoinVal');
+const hudBuffRow = document.getElementById('hudBuffRow');
+const buffShieldEl = document.getElementById('buffShield');
+const buffMagnetEl = document.getElementById('buffMagnet');
+const buffMagnetTimeEl = document.getElementById('buffMagnetTime');
+const buffDashEl = document.getElementById('buffDash');
+const buffDashTimeEl = document.getElementById('buffDashTime');
+
 const startScreen = document.getElementById('startScreen');
+const shopScreen = document.getElementById('shopScreen');
 const gameOverScreen = document.getElementById('gameOverScreen');
+
 const startBestScore = document.getElementById('startBestScore');
+const shopCoinVal = document.getElementById('shopCoinVal');
 const finalScoreVal = document.getElementById('finalScoreVal');
 const finalBestVal = document.getElementById('finalBestVal');
+const finalCoinsVal = document.getElementById('finalCoinsVal');
 const newRecordBadge = document.getElementById('newRecordBadge');
+const nearRecordBanner = document.getElementById('nearRecordBanner');
+
 const playBtn = document.getElementById('playBtn');
+const openShopBtn = document.getElementById('openShopBtn');
+const gameOverShopBtn = document.getElementById('gameOverShopBtn');
+const closeShopBtn = document.getElementById('closeShopBtn');
+const adCoinsBtn = document.getElementById('adCoinsBtn');
+const uiAdCoinsText = document.getElementById('uiAdCoinsText');
+
+const buyDashUpgradeBtn = document.getElementById('buyDashUpgradeBtn');
+const dashUpgradeDotsEl = document.getElementById('dashUpgradeDots');
+const buyMagnetUpgradeBtn = document.getElementById('buyMagnetUpgradeBtn');
+const magnetUpgradeDotsEl = document.getElementById('magnetUpgradeDots');
+const skinsListEl = document.getElementById('skinsList');
+
 const reviveBtn = document.getElementById('reviveBtn');
+const doubleCoinsBtn = document.getElementById('doubleCoinsBtn');
+const shareBtn = document.getElementById('shareBtn');
 const restartBtn = document.getElementById('restartBtn');
 const muteBtn = document.getElementById('muteBtn');
 const iconSoundOn = document.getElementById('iconSoundOn');
 const iconSoundOff = document.getElementById('iconSoundOff');
+const toastBanner = document.getElementById('toastBanner');
 
-// Global Game Variables
+// Global Game State
 let currentState = GAME_STATE.START_MENU;
+let shopReturnTo = GAME_STATE.START_MENU;
+let shopCooldownInterval = null;
 let score = 0;
 let bestScore = 0;
+let runCoins = 0;
 let startY = 620;
 let cameraY = 0;
 let highestPlatformY = 0;
 let consecutiveBreakables = 0;
+let platformsSinceLastRareBuff = 0;
 let tutorialTimer = 0;
 let globalTime = 0;
 let hasRevivedThisRun = false;
+let hasDoubledRunCoins = false;
 
-// Load Best Score from localStorage
-try {
-    const savedBest = parseInt(localStorage.getItem('lumi_jump_highscore'), 10);
-    if (!isNaN(savedBest) && savedBest > 0) bestScore = savedBest;
-} catch (e) {}
+// Dynamic Newbie Assistance State (triggers after 3 consecutive losses below 600m)
+let lowAltitudeLossStreak = 0;
+let newbieAssistActive = false;
 
-function refreshScoreDisplays() {
-    const u = t('unit');
-    startBestScore.textContent = `${bestScore}${u}`;
-    finalScoreVal.textContent = `${score}${u}`;
-    finalBestVal.textContent = `${bestScore}${u}`;
-    hudScoreVal.textContent = String(score);
+let toastTimeout = null;
+function showToast(msg) {
+    if (!toastBanner) return;
+    toastBanner.textContent = msg;
+    toastBanner.classList.add('show');
+    clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => {
+        toastBanner.classList.remove('show');
+    }, 2200);
 }
 
+// Initialize language & saved progress
 currentLang = detectInitialLanguage();
-applyLocalization();
+loadLocalSave();
 
-// Update Mute UI
 function updateMuteUI() {
     if (soundManager.muted) {
         iconSoundOn.style.display = 'none';
@@ -1173,7 +2209,175 @@ function updateMuteUI() {
         iconSoundOff.style.display = 'none';
     }
 }
-updateMuteUI();
+
+function refreshScoreDisplays() {
+    const u = t('unit');
+    startBestScore.textContent = `${bestScore}${u}`;
+    finalScoreVal.textContent = `${score}${u}`;
+    finalBestVal.textContent = `${bestScore}${u}`;
+    finalCoinsVal.textContent = `+${runCoins}`;
+    hudScoreVal.textContent = String(score);
+    hudCoinVal.textContent = String(SaveData.coins);
+    shopCoinVal.textContent = String(SaveData.coins);
+}
+
+function updateShopAdButtonUI() {
+    const remMs = getShopAdRemainingMs();
+    if (remMs > 0) {
+        adCoinsBtn.disabled = true;
+        uiAdCoinsText.textContent = t('adCoinsCooldown').replace('{time}', formatMMSS(remMs));
+    } else {
+        adCoinsBtn.disabled = false;
+        uiAdCoinsText.textContent = t('adCoinsBtn');
+    }
+}
+
+function renderUpgradeBranch(dotsContainer, btnEl, level, filledClass) {
+    dotsContainer.innerHTML = '';
+    for (let i = 0; i < MAX_UPGRADE_LEVEL; i++) {
+        const dot = document.createElement('span');
+        dot.className = 'level-dot' + (i < level ? ` ${filledClass}` : '');
+        dotsContainer.appendChild(dot);
+    }
+
+    if (level >= MAX_UPGRADE_LEVEL) {
+        btnEl.className = 'shop-action-btn active';
+        btnEl.disabled = true;
+        btnEl.innerHTML = `<span>${t('upgradeMax')}</span>`;
+    } else {
+        const cost = UPGRADE_COSTS[level];
+        btnEl.className = 'shop-action-btn buy';
+        btnEl.disabled = SaveData.coins < cost;
+        btnEl.innerHTML = `<span class="coin-dot" style="width:11px;height:11px;"></span><span>${cost}</span>`;
+    }
+}
+
+function renderShopUI() {
+    shopCoinVal.textContent = String(SaveData.coins);
+    updateShopAdButtonUI();
+
+    // Render 2 Independent Upgrade Branches (5 Levels Each)
+    renderUpgradeBranch(dashUpgradeDotsEl, buyDashUpgradeBtn, SaveData.dashUpgradeLevel, 'filled-dash');
+    renderUpgradeBranch(magnetUpgradeDotsEl, buyMagnetUpgradeBtn, SaveData.magnetUpgradeLevel, 'filled-magnet');
+
+    // Skins List
+    skinsListEl.innerHTML = '';
+    for (let i = 0; i < SKINS.length; i++) {
+        const sk = SKINS[i];
+        const owned = SaveData.ownedSkins.includes(sk.id);
+        const equipped = SaveData.selectedSkin === sk.id;
+
+        const row = document.createElement('div');
+        row.className = 'skin-item' + (equipped ? ' equipped' : '');
+
+        const left = document.createElement('div');
+        left.className = 'skin-left';
+
+        const swatch = document.createElement('div');
+        swatch.className = 'skin-swatch';
+        swatch.style.background = sk.swatchCss;
+
+        const meta = document.createElement('div');
+        meta.className = 'skin-meta';
+
+        const nameEl = document.createElement('div');
+        nameEl.className = 'skin-name';
+        nameEl.textContent = currentLang === 'ru' ? sk.nameRu : sk.nameEn;
+
+        const passEl = document.createElement('div');
+        passEl.className = 'skin-passive';
+        passEl.textContent = currentLang === 'ru' ? sk.passiveRu : sk.passiveEn;
+
+        meta.appendChild(nameEl);
+        meta.appendChild(passEl);
+        left.appendChild(swatch);
+        left.appendChild(meta);
+
+        const btn = document.createElement('button');
+        if (equipped) {
+            btn.className = 'shop-action-btn active';
+            btn.textContent = t('equipped');
+            btn.disabled = true;
+        } else if (owned) {
+            btn.className = 'shop-action-btn equip';
+            btn.textContent = t('equip');
+            btn.onclick = () => {
+                soundManager.initContext();
+                SaveData.selectedSkin = sk.id;
+                soundManager.playJump();
+                VKBridgeWrapper.haptic('light');
+                persistProgress();
+                renderShopUI();
+            };
+        } else {
+            btn.className = 'shop-action-btn buy';
+            btn.disabled = SaveData.coins < sk.price;
+            btn.innerHTML = `<span class="coin-dot" style="width:11px;height:11px;"></span><span>${sk.price}</span>`;
+            btn.onclick = () => {
+                soundManager.initContext();
+                if (SaveData.coins < sk.price) return;
+                SaveData.coins -= sk.price;
+                SaveData.ownedSkins.push(sk.id);
+                SaveData.selectedSkin = sk.id;
+                soundManager.playCash();
+                VKBridgeWrapper.haptic('medium');
+                persistProgress();
+                refreshScoreDisplays();
+                renderShopUI();
+            };
+        }
+
+        row.appendChild(left);
+        row.appendChild(btn);
+        skinsListEl.appendChild(row);
+    }
+}
+
+function applyLocalization() {
+    document.title = t('docTitle');
+    document.documentElement.lang = currentLang;
+
+    const setEl = (id, text) => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = text;
+    };
+
+    setEl('uiGameTitle', t('gameTitle'));
+    setEl('uiGameSubtitle', t('gameSubtitle'));
+    setEl('uiBestLabel', t('bestLabel'));
+    setEl('uiCtrlDesktop', t('ctrlDesktop'));
+    setEl('uiCtrlMobile', t('ctrlMobile'));
+    setEl('playBtn', t('playBtn'));
+    setEl('uiShopBtnText', t('shopBtn'));
+    setEl('uiGoShopText', t('shopBtn'));
+    setEl('uiShopTitle', t('shopTitle'));
+    setEl('uiUpgradeSection', t('upgradeSection'));
+    setEl('uiDashUpgradeName', t('dashUpgradeName'));
+    setEl('uiDashUpgradeDesc', t('dashUpgradeDesc'));
+    setEl('uiMagnetUpgradeName', t('magnetUpgradeName'));
+    setEl('uiMagnetUpgradeDesc', t('magnetUpgradeDesc'));
+    setEl('uiSkinsSection', t('skinsSection'));
+    setEl('uiGameOverTitle', t('gameOverTitle'));
+    setEl('newRecordBadge', t('newRecord'));
+    setEl('nearRecordBanner', t('nearRecord'));
+    setEl('uiStatAltitude', t('statAltitude'));
+    setEl('uiStatBest', t('statBest'));
+    setEl('uiStatCoins', t('statCoins'));
+    setEl('uiReviveBtnText', t('reviveBtn'));
+    setEl('restartBtn', t('restartBtn'));
+    setEl('hudScoreUnit', t('unit'));
+    setEl('buffShieldText', t('buffShield'));
+    setEl('uiShareBtnText', SaveData.shareRewardClaimed ? t('sharePlain') : t('shareWithReward'));
+    updateShopAdButtonUI();
+}
+
+function refreshAllUI() {
+    applyLocalization();
+    refreshScoreDisplays();
+    renderShopUI();
+    updateMuteUI();
+}
+refreshAllUI();
 
 // Input State
 const input = {
@@ -1181,24 +2385,21 @@ const input = {
     rightKey: false,
     touchLeft: false,
     touchRight: false,
-    pointerDown: false,
-    pointerX: 0
+    pointerDown: false
 };
 
-// Background Stars, Nebulae & Floating Ambient Motes
+// Background Elements (Clean Batched Vector Arcs)
 const bgStars = [];
 const bgNebulae = [];
 const ambientMotes = [];
 
 function initBackgroundElements() {
     bgStars.length = 0;
-    // 32 stars split into 2 twinkle groups for single-batch arc rendering
     for (let i = 0; i < 32; i++) {
         bgStars.push({
             x: (12 + Math.random() * (LOGICAL_WIDTH - 24)) | 0,
             y: (Math.random() * LOGICAL_HEIGHT) | 0,
             r: i % 3 === 0 ? 1.6 : 1.1,
-            group: i & 1,
             parallax: 0.14
         });
     }
@@ -1232,10 +2433,9 @@ function initBackgroundElements() {
 }
 
 /**
- * Zero-Allocation Object-Pooled Particle System (Capped at 45 active particles)
- * Eliminates garbage collection micro-stutters and uses pure geometric circles.
+ * Zero-Allocation Object-Pooled Particle System (Capped at 48 active particles)
  */
-const MAX_PARTICLES = 45;
+const MAX_PARTICLES = 48;
 const particlePool = [];
 let activeParticleCount = 0;
 
@@ -1248,8 +2448,6 @@ for (let i = 0; i < MAX_PARTICLES; i++) {
         vy: 0,
         gravity: 0,
         size: 4,
-        rot: 0,
-        vRot: 0,
         color: '#38ef7d',
         alpha: 1,
         decay: 0.03
@@ -1264,37 +2462,32 @@ function acquireParticle() {
     if (activeParticleCount < MAX_PARTICLES) {
         return particlePool[activeParticleCount++];
     }
-    // Recycle oldest particle by swapping index 0 to the end
     const recycled = particlePool[0];
     particlePool[0] = particlePool[activeParticleCount - 1];
     particlePool[activeParticleCount - 1] = recycled;
     return recycled;
 }
 
-function spawnBounceBurst(x, y, color = '#38ef7d') {
-    const count = 7;
+function spawnBounceBurst(x, y, color = '#38ef7d', count = 7) {
     for (let i = 0; i < count; i++) {
         const angle = randomRange(0, Math.PI * 2);
         const speed = randomRange(1.5, 4.8);
         const pt = acquireParticle();
         pt.type = i === 0 ? 'ring' : 'spark';
-        pt.x = x + randomRange(-14, 14);
+        pt.x = x + randomRange(-12, 12);
         pt.y = y;
         pt.vx = Math.cos(angle) * speed;
         pt.vy = Math.sin(angle) * speed - 1.2;
         pt.gravity = 0.12;
         pt.size = randomRange(2.8, 5.0);
-        pt.rot = 0;
-        pt.vRot = 0;
         pt.color = color;
         pt.alpha = 1;
-        pt.decay = randomRange(0.035, 0.055);
+        pt.decay = randomRange(0.036, 0.056);
     }
 }
 
 function spawnShatterDebris(plat) {
-    const count = 8;
-    for (let i = 0; i < count; i++) {
+    for (let i = 0; i < 8; i++) {
         const pt = acquireParticle();
         pt.type = 'shard';
         pt.x = plat.x + randomRange(4, plat.w - 4);
@@ -1302,9 +2495,7 @@ function spawnShatterDebris(plat) {
         pt.vx = randomRange(-3.8, 3.8);
         pt.vy = randomRange(-3.2, 1.8);
         pt.gravity = 0.34;
-        pt.size = randomRange(4.5, 8.0);
-        pt.rot = 0;
-        pt.vRot = 0;
+        pt.size = randomRange(4.5, 7.8);
         pt.color = i % 2 === 0 ? '#ff6b6b' : '#ffa502';
         pt.alpha = 1;
         pt.decay = randomRange(0.028, 0.042);
@@ -1324,15 +2515,17 @@ function spawnStarDashParticles(x, y) {
     pt.vx = randomRange(-1.2, 1.2);
     pt.vy = randomRange(2.2, 5.0);
     pt.gravity = 0.04;
-    pt.size = randomRange(4.2, 6.8);
-    pt.rot = 0;
-    pt.vRot = 0;
+    pt.size = randomRange(4.2, 6.6);
     pt.color = STAR_DASH_COLORS[(Math.random() * STAR_DASH_COLORS.length) | 0];
     pt.alpha = 1;
     pt.decay = 0.045;
 }
 
-// Player Object ("Lumi" - Glowing Droplet Spirit)
+/**
+ * ============================================================================
+ * 7. PLAYER ("LUMI") WITH SKINS, SHIELD, MAGNET & STAR DASH UPGRADES
+ * ============================================================================
+ */
 const player = {
     x: LOGICAL_WIDTH / 2,
     y: 560,
@@ -1347,9 +2540,11 @@ const player = {
     eyeOffsetY: 0,
     blinkTimer: 180,
     isBlinking: false,
-    starDashTimer: 0, // in seconds (2.8s when boosted)
+    starDashTimer: 0,
+    magnetTimer: 0,
+    hasShield: false,
 
-    reset(x, y) {
+    reset(x, y, applySkinPassives = false) {
         this.x = x;
         this.y = y;
         this.prevY = y;
@@ -1360,28 +2555,72 @@ const player = {
         this.eyeOffsetX = 0;
         this.eyeOffsetY = 0;
         this.starDashTimer = 0;
+        this.magnetTimer = 0;
+        const skin = getCurrentSkin();
+        this.hasShield = applySkinPassives ? Boolean(skin.startShield) : false;
     },
 
     triggerBounce() {
         this.vy = JUMP_VELOCITY;
-        // Squash on bounce impact, which then rapidly springs into upward stretch
         this.scaleX = 1.38;
         this.scaleY = 0.65;
         soundManager.playJump();
     },
 
     triggerStarDash() {
-        this.starDashTimer = 2.8;
+        const skin = getCurrentSkin();
+        // Dedicated Star Dash upgrade branch (+0.45s per level) + skin bonus
+        const dur = 2.8 + SaveData.dashUpgradeLevel * 0.45 + (skin.extraDashSec || 0);
+        this.starDashTimer = dur;
         this.vy = -22;
         this.scaleX = 0.72;
         this.scaleY = 1.35;
         soundManager.playStarDash();
+        VKBridgeWrapper.haptic('medium');
+    },
+
+    triggerMagnet() {
+        // Dedicated Magnet upgrade branch (+1.5s duration per level)
+        this.magnetTimer = 6.5 + SaveData.magnetUpgradeLevel * 1.5;
+        soundManager.playPowerUp();
+        VKBridgeWrapper.haptic('medium');
+    },
+
+    triggerShieldPickup() {
+        this.hasShield = true;
+        soundManager.playPowerUp();
+        VKBridgeWrapper.haptic('medium');
+    },
+
+    triggerShieldSave() {
+        this.hasShield = false;
+        this.y = cameraY + LOGICAL_HEIGHT - 28;
+        this.prevY = this.y;
+        this.vy = -21.5;
+        this.scaleX = 0.72;
+        this.scaleY = 1.36;
+        soundManager.playShieldSave();
+        VKBridgeWrapper.haptic('heavy');
+        spawnBounceBurst(this.x, this.y, '#38d9ff', 10);
+        showToast(t('shieldSavedToast'));
+
+        const safeW = 92;
+        platforms.push({
+            x: Math.max(12, Math.min(LOGICAL_WIDTH - safeW - 12, this.x - safeW / 2)),
+            y: cameraY + LOGICAL_HEIGHT * 0.72,
+            w: safeW,
+            h: 16,
+            type: PLATFORM_TYPE.STATIC,
+            vx: 0,
+            powerUp: POWERUP_TYPE.NONE,
+            broken: false
+        });
     },
 
     update(dtFactor) {
         this.prevY = this.y;
+        const dtSec = (dtFactor * 16.667) / 1000;
 
-        // Horizontal movement from Keyboard or Touch
         let moveDir = 0;
         if (input.leftKey || input.touchLeft) moveDir -= 1;
         if (input.rightKey || input.touchRight) moveDir += 1;
@@ -1391,12 +2630,10 @@ const player = {
                 const targetVx = moveDir * this.vxMax;
                 this.vx = lerp(this.vx, targetVx, 0.22 * dtFactor);
             } else {
-                // Smooth air resistance
                 this.vx = lerp(this.vx, 0, 0.14 * dtFactor);
                 if (Math.abs(this.vx) < 0.05) this.vx = 0;
             }
         } else {
-            // Idle menu centering
             this.vx = lerp(this.vx, (LOGICAL_WIDTH / 2 - this.x) * 0.05, 0.1 * dtFactor);
         }
 
@@ -1409,13 +2646,17 @@ const player = {
             this.x -= LOGICAL_WIDTH;
         }
 
-        // Star Dash Boost vs Standard Gravity
+        // Magnet Timer
+        if (this.magnetTimer > 0) {
+            this.magnetTimer = Math.max(0, this.magnetTimer - dtSec);
+        }
+
+        // Star Dash vs Standard Gravity
         if (this.starDashTimer > 0) {
-            this.starDashTimer -= (dtFactor * 16.667) / 1000;
+            this.starDashTimer -= dtSec;
             if (this.starDashTimer > 0.35) {
                 this.vy = -22;
             } else {
-                // Smoothly decelerate into a normal jump at the end of Star Dash
                 this.vy = lerp(this.vy, JUMP_VELOCITY * 0.85, 0.18 * dtFactor);
             }
             spawnStarDashParticles(this.x, this.y);
@@ -1425,53 +2666,44 @@ const player = {
             }
         } else {
             this.vy += GRAVITY * dtFactor;
-            // Terminal falling velocity safeguard
             if (this.vy > 16.5) this.vy = 16.5;
         }
 
         this.y += this.vy * dtFactor;
 
         // Jelly Squash & Stretch Spring Physics
-        // Immediately after a bounce squash (scaleX > 1.15), transition toward upward launch stretch (0.78, 1.28)
         let targetSX = 1.0;
         let targetSY = 1.0;
 
         if (this.scaleX > 1.12 && this.vy < -8) {
-            // Spring from impact squash into launch stretch
             this.scaleX = lerp(this.scaleX, 0.78, 0.32 * dtFactor);
             this.scaleY = lerp(this.scaleY, 1.28, 0.32 * dtFactor);
         } else {
             if (this.vy < -4) {
-                // Rising stretch
                 const riseFactor = Math.min(1, Math.abs(this.vy) / 14);
                 targetSX = lerp(1.0, 0.82, riseFactor);
                 targetSY = lerp(1.0, 1.22, riseFactor);
             } else if (this.vy > 4) {
-                // Falling slight elongation
                 const fallFactor = Math.min(1, (this.vy - 4) / 12);
                 targetSX = lerp(1.0, 0.88, fallFactor);
                 targetSY = lerp(1.0, 1.14, fallFactor);
-            } else {
-                // Near apex: smoothly return to 1.0, 1.0
-                targetSX = 1.0;
-                targetSY = 1.0;
             }
             this.scaleX = lerp(this.scaleX, targetSX, 0.18 * dtFactor);
             this.scaleY = lerp(this.scaleY, targetSY, 0.18 * dtFactor);
         }
 
-        // Expressive Eye Look Target (towards vx, vy)
+        // Expressive Eyes
         const targetEyeX = Math.max(-5.5, Math.min(5.5, this.vx * 0.65));
         const targetEyeY = Math.max(-4.5, Math.min(4.5, this.vy * 0.28));
         this.eyeOffsetX = lerp(this.eyeOffsetX, targetEyeX, 0.25 * dtFactor);
         this.eyeOffsetY = lerp(this.eyeOffsetY, targetEyeY, 0.25 * dtFactor);
 
-        // Occasional Cute Blinking
+        // Cute Blinking
         this.blinkTimer -= dtFactor;
         if (this.blinkTimer <= 0) {
             if (!this.isBlinking) {
                 this.isBlinking = true;
-                this.blinkTimer = 8; // Blink duration ~130ms
+                this.blinkTimer = 8;
             } else {
                 this.isBlinking = false;
                 this.blinkTimer = randomRange(140, 320);
@@ -1480,7 +2712,6 @@ const player = {
     },
 
     draw(ctx, cameraOffsetY) {
-        // Draw primary body and seamless wrap ghost if near screen edge
         this.drawSingleInstance(ctx, this.x, this.y - cameraOffsetY);
         if (this.x < this.radius * 2) {
             this.drawSingleInstance(ctx, this.x + LOGICAL_WIDTH, this.y - cameraOffsetY);
@@ -1490,28 +2721,43 @@ const player = {
     },
 
     drawSingleInstance(ctx, drawX, drawY) {
-        if (drawY < -60 || drawY > LOGICAL_HEIGHT + 60) return;
+        if (drawY < -65 || drawY > LOGICAL_HEIGHT + 65) return;
 
-        ctx.save();
-        ctx.translate(Math.round(drawX), Math.round(drawY));
-        ctx.scale(this.scaleX, this.scaleY);
-
+        const ix = Math.round(drawX);
+        const iy = Math.round(drawY);
         const r = this.radius;
         const isBoosted = this.starDashTimer > 0;
+        const skin = getCurrentSkin();
 
-        // 1. Soft Layered Outer Aura (Zero offscreen texture sampling)
-        ctx.fillStyle = isBoosted ? 'rgba(255, 200, 0, 0.16)' : 'rgba(0, 210, 255, 0.14)';
+        // Active Magnet Pulsing Ring
+        if (this.magnetTimer > 0) {
+            const pulse = 36 + Math.sin(globalTime * 9) * 5;
+            ctx.strokeStyle = 'rgba(255, 118, 196, 0.45)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(ix, iy, pulse, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        ctx.save();
+        ctx.translate(ix, iy);
+        ctx.scale(this.scaleX, this.scaleY);
+
+        // 1. Soft Layered Outer Aura (Pure Vector Arcs, Zero Artifacts)
+        ctx.fillStyle = isBoosted ? 'rgba(255, 200, 0, 0.16)' : skin.auraOuter;
         ctx.beginPath();
         ctx.arc(0, 0, r * 1.85, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = isBoosted ? 'rgba(255, 225, 80, 0.26)' : 'rgba(56, 239, 125, 0.22)';
+        ctx.fillStyle = isBoosted ? 'rgba(255, 225, 80, 0.26)' : skin.auraInner;
         ctx.beginPath();
         ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. Smooth Bezier Droplet Body using pre-cached local-space CanvasGradient
-        ctx.fillStyle = isBoosted ? RenderCache.lumiGradBoost : RenderCache.lumiGradNormal;
+        // 2. Smooth Bezier Droplet Body using pre-cached skin gradient
+        ctx.fillStyle = isBoosted
+            ? RenderCache.lumiGradBoost
+            : (RenderCache.skinGradients[skin.id] || RenderCache.skinGradients.mint);
         ctx.beginPath();
         ctx.moveTo(0, -r * 1.18);
         ctx.bezierCurveTo(r * 0.85, -r * 0.95, r * 1.12, -r * 0.1, r * 0.98, r * 0.55);
@@ -1533,7 +2779,7 @@ const player = {
         ctx.ellipse(10, 3.8, 3.2, 1.8, 0, 0, Math.PI * 2);
         ctx.fill();
 
-        // 5. Expressive Eyes looking toward (vx, vy)
+        // 5. Expressive Eyes
         const ex = this.eyeOffsetX;
         const ey = this.eyeOffsetY;
         const leftEyeX = -6.5 + ex;
@@ -1551,14 +2797,12 @@ const player = {
             ctx.lineTo(rightEyeX + 3, eyeY);
             ctx.stroke();
         } else {
-            // Dark Pupils
             ctx.fillStyle = '#0f172a';
             ctx.beginPath();
             ctx.arc(leftEyeX, eyeY, 3.4, 0, Math.PI * 2);
             ctx.arc(rightEyeX, eyeY, 3.4, 0, Math.PI * 2);
             ctx.fill();
 
-            // Clean Circular White Specular Highlights
             ctx.fillStyle = '#ffffff';
             ctx.beginPath();
             ctx.arc(leftEyeX - 1.1, eyeY - 1.2, 1.2, 0, Math.PI * 2);
@@ -1567,32 +2811,52 @@ const player = {
         }
 
         ctx.restore();
+
+        // Active Bubble Shield Overlay
+        if (this.hasShield) {
+            ctx.fillStyle = 'rgba(56, 217, 255, 0.14)';
+            ctx.strokeStyle = 'rgba(126, 232, 255, 0.85)';
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(ix, iy, r + 9, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.65)';
+            ctx.lineWidth = 1.6;
+            ctx.beginPath();
+            ctx.arc(ix, iy, r + 5, -Math.PI * 0.78, -Math.PI * 0.42);
+            ctx.stroke();
+        }
     }
 };
 
 /**
  * ============================================================================
- * 5. PLATFORM GENERATOR (GUARANTEED REACHABLE) & POWER-UPS
+ * 8. PLATFORMS, COINS & BALANCED RARE POWER-UPS (SHIELD & MAGNET)
  * ============================================================================
  */
 const platforms = [];
+const coins = [];
 
 function createPlatform(y, forceType = null) {
-    // Difficulty scales from 0.0 at 0m to 1.0 at 8000m
     const difficulty = Math.min(score / 8000, 1.0);
+    const inStarterZone = y > startY - 7000;
+    const assistBonusW = (newbieAssistActive && inStarterZone) ? 20 : 0;
 
-    // Platform width gradually narrows from 78px to 62px at high altitudes
-    const w = Math.round(lerp(78, 62, difficulty));
+    const w = Math.round(lerp(78, 62, difficulty)) + assistBonusW;
     const h = 16;
     const x = randomRange(14, LOGICAL_WIDTH - w - 14);
 
     let type = forceType;
     if (!type) {
         const movingProb = lerp(0.10, 0.45, difficulty);
-        const breakableProb = lerp(0.05, 0.35, difficulty);
+        let breakableProb = lerp(0.05, 0.35, difficulty);
+        if (newbieAssistActive && inStarterZone) {
+            breakableProb *= 0.4;
+        }
         const roll = Math.random();
 
-        // Anti-Frustration Safeguard: Never spawn more than 2 Breakable platforms in a row
         if (consecutiveBreakables >= 2) {
             type = Math.random() < (movingProb / (1 - breakableProb))
                 ? PLATFORM_TYPE.MOVING
@@ -1612,15 +2876,53 @@ function createPlatform(y, forceType = null) {
         consecutiveBreakables = 0;
     }
 
-    // Power-Up: Star Dash / Jetpack (6% chance on Static or Moving platforms above starter zone)
-    let hasStarDash = false;
+    platformsSinceLastRareBuff++;
+
+    // Power-Ups on Static or Moving platforms
+    // Star Dash stays exciting (~5.0%); Magnet (~1.4%) & Shield (~1.1%) are noticeably rare with spacing cooldown
+    let powerUp = POWERUP_TYPE.NONE;
     if (
         currentState === GAME_STATE.PLAYING &&
-        y < startY - 250 &&
-        (type === PLATFORM_TYPE.STATIC || type === PLATFORM_TYPE.MOVING) &&
-        Math.random() < 0.06
+        y < startY - 280 &&
+        (type === PLATFORM_TYPE.STATIC || type === PLATFORM_TYPE.MOVING)
     ) {
-        hasStarDash = true;
+        const pRoll = Math.random();
+        if (pRoll < 0.050) {
+            powerUp = POWERUP_TYPE.STAR_DASH;
+        } else if (platformsSinceLastRareBuff >= 14 && y < startY - 450) {
+            if (pRoll < 0.064) {
+                powerUp = POWERUP_TYPE.MAGNET;
+                platformsSinceLastRareBuff = 0;
+            } else if (pRoll < 0.075 && !player.hasShield) {
+                powerUp = POWERUP_TYPE.SHIELD;
+                platformsSinceLastRareBuff = 0;
+            }
+        }
+    }
+
+    // Spawn Golden Coins on platforms without power-ups
+    if (
+        currentState === GAME_STATE.PLAYING &&
+        y < startY - 120 &&
+        powerUp === POWERUP_TYPE.NONE &&
+        Math.random() < 0.34
+    ) {
+        const cx = x + w * 0.5;
+        if (Math.random() < 0.30) {
+            for (let k = 0; k < 3; k++) {
+                coins.push({
+                    x: cx,
+                    y: y - 22 - k * 28,
+                    phase: Math.random() * Math.PI * 2
+                });
+            }
+        } else {
+            coins.push({
+                x: cx,
+                y: y - 22,
+                phase: Math.random() * Math.PI * 2
+            });
+        }
     }
 
     const speed = (1.5 + difficulty * 2.0) * (Math.random() < 0.5 ? 1 : -1);
@@ -1632,17 +2934,18 @@ function createPlatform(y, forceType = null) {
         h,
         type,
         vx: type === PLATFORM_TYPE.MOVING ? speed : 0,
-        hasStarDash,
+        powerUp,
         broken: false
     };
 }
 
 function initPlatformsForMenu() {
     platforms.length = 0;
+    coins.length = 0;
     consecutiveBreakables = 0;
+    platformsSinceLastRareBuff = 0;
 
-    // Centered starter platform right under Lumi
-    const starterW = 96;
+    const starterW = newbieAssistActive ? 116 : 96;
     const starterPlat = {
         x: (LOGICAL_WIDTH - starterW) / 2,
         y: 620,
@@ -1650,38 +2953,162 @@ function initPlatformsForMenu() {
         h: 16,
         type: PLATFORM_TYPE.STATIC,
         vx: 0,
-        hasStarDash: false,
+        powerUp: POWERUP_TYPE.NONE,
         broken: false
     };
     platforms.push(starterPlat);
     highestPlatformY = starterPlat.y;
 
-    // Populate initial screen of platforms upward
     while (highestPlatformY > -LOGICAL_HEIGHT) {
-        const gap = randomRange(MIN_GAP_Y, MAX_GAP_Y);
+        const maxGap = newbieAssistActive ? 148 : MAX_GAP_Y;
+        const gap = randomRange(MIN_GAP_Y, maxGap);
         highestPlatformY -= gap;
-        // First 3 platforms are always safe Static
         const forceSafe = highestPlatformY > 320 ? PLATFORM_TYPE.STATIC : null;
         platforms.push(createPlatform(highestPlatformY, forceSafe));
     }
 }
 
+function updateCoins(dtFactor) {
+    if (currentState !== GAME_STATE.PLAYING) return;
+
+    const skin = getCurrentSkin();
+    // Magnet upgrade branch scales BOTH duration and pull radius (185px base + 22px per level -> up to 295px)
+    const activePullRadius = player.magnetTimer > 0
+        ? (185 + SaveData.magnetUpgradeLevel * 22)
+        : (skin.passiveMagnetRadius || 0);
+    const pullSpeed = player.magnetTimer > 0
+        ? (10.5 + SaveData.magnetUpgradeLevel * 0.7)
+        : 5.2;
+
+    for (let i = coins.length - 1; i >= 0; i--) {
+        const c = coins[i];
+
+        if (c.y > cameraY + LOGICAL_HEIGHT + 90) {
+            coins.splice(i, 1);
+            continue;
+        }
+
+        let dx = player.x - c.x;
+        if (dx > LOGICAL_WIDTH * 0.5) dx -= LOGICAL_WIDTH;
+        else if (dx < -LOGICAL_WIDTH * 0.5) dx += LOGICAL_WIDTH;
+        const dy = player.y - c.y;
+        const distSq = dx * dx + dy * dy;
+
+        if (activePullRadius > 0 && distSq < activePullRadius * activePullRadius && distSq > 1) {
+            const dist = Math.sqrt(distSq);
+            c.x += (dx / dist) * pullSpeed * dtFactor;
+            c.y += (dy / dist) * pullSpeed * dtFactor;
+            if (c.x < 0) c.x += LOGICAL_WIDTH;
+            else if (c.x > LOGICAL_WIDTH) c.x -= LOGICAL_WIDTH;
+        }
+
+        if (distSq < (player.radius + 14) * (player.radius + 14)) {
+            coins.splice(i, 1);
+            runCoins++;
+            SaveData.coins++;
+            hudCoinVal.textContent = String(SaveData.coins);
+
+            soundManager.playCoin();
+            spawnBounceBurst(c.x, c.y, '#ffe066', 4);
+        }
+    }
+}
+
+function drawCoins(ctx, cameraOffsetY) {
+    const R = 10.5;
+    for (let i = 0; i < coins.length; i++) {
+        const c = coins[i];
+        const screenY = Math.round(c.y - cameraOffsetY + Math.sin(globalTime * 3.8 + c.phase) * 2.5);
+        if (screenY < -24 || screenY > LOGICAL_HEIGHT + 24) continue;
+        const cx = Math.round(c.x);
+
+        // Gentle, dreamy horizontal rotation via Math.cos (100% vector, zero shadows/allocations)
+        const spin = Math.cos(globalTime * 2.9 + c.phase);
+        const absSpin = Math.abs(spin);
+        const scaleX = Math.max(0.22, absSpin);
+        const rx = R * scaleX;
+
+        // 1. Soft Luminous Aura Halo (matches Lumi & glowing capsule platforms)
+        ctx.fillStyle = 'rgba(255, 214, 90, 0.20)';
+        ctx.beginPath();
+        ctx.arc(cx, screenY, 16, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 2. Subtle Warm Amber Side Rim (light minimalist 3D thickness)
+        const edgeShift = (spin >= 0 ? -1 : 1) * (1 - absSpin) * 2.2;
+        ctx.fillStyle = '#f59e0b';
+        ctx.beginPath();
+        ctx.ellipse(cx + edgeShift, screenY, rx, R, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 3. Smooth Sun-Gold Outer Token Body
+        ctx.fillStyle = '#ffca3a';
+        ctx.beginPath();
+        ctx.ellipse(cx, screenY, rx, R, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 4. Soft Glowing Pastel-Gold Inner Face
+        ctx.fillStyle = '#ffe97f';
+        ctx.beginPath();
+        ctx.ellipse(cx, screenY, (R - 2.3) * scaleX, R - 2.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // 5. Minimalist Luminous Center Emblem & Soft Highlight
+        if (scaleX > 0.36) {
+            // Subtle warm backing behind the minimalist vertical emblem
+            ctx.fillStyle = 'rgba(245, 158, 11, 0.32)';
+            ctx.beginPath();
+            ctx.ellipse(cx + 0.5 * scaleX, screenY + 0.7, 2.3 * scaleX, 4.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Clean creamy-white glowing center core (instant minimalist coin silhouette)
+            ctx.fillStyle = '#fffbeb';
+            ctx.beginPath();
+            ctx.ellipse(cx, screenY, 2.1 * scaleX, 4.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Soft top-left jelly highlight matching Lumi's glossy feel
+            if (scaleX > 0.52) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.65)';
+                ctx.beginPath();
+                ctx.ellipse(cx - 3.6 * scaleX, screenY - 4.0, 1.8 * scaleX, 1.0, -0.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+    }
+}
+
+function applyPlatformPowerUp(p, pickupX, pickupY) {
+    const kind = p.powerUp;
+    p.powerUp = POWERUP_TYPE.NONE;
+
+    if (kind === POWERUP_TYPE.STAR_DASH) {
+        player.triggerStarDash();
+        spawnBounceBurst(pickupX, pickupY, '#ffd700', 8);
+    } else if (kind === POWERUP_TYPE.MAGNET) {
+        player.triggerMagnet();
+        spawnBounceBurst(pickupX, pickupY, '#ff6bb5', 8);
+    } else if (kind === POWERUP_TYPE.SHIELD) {
+        player.triggerShieldPickup();
+        spawnBounceBurst(pickupX, pickupY, '#38d9ff', 8);
+    }
+}
+
 function updatePlatforms(dtFactor) {
-    // Spawn new platforms above camera view
     while (highestPlatformY > cameraY - LOGICAL_HEIGHT) {
-        const gap = randomRange(MIN_GAP_Y, MAX_GAP_Y);
+        const inStarterZone = highestPlatformY > startY - 7000;
+        const maxGap = (newbieAssistActive && inStarterZone) ? 148 : MAX_GAP_Y;
+        const gap = randomRange(MIN_GAP_Y, maxGap);
         highestPlatformY -= gap;
         platforms.push(createPlatform(highestPlatformY));
     }
 
-    // Update Moving Platforms & Check Power-Up / Bounce Collisions
     const playerBottomPrev = player.prevY + player.radius * 0.75;
     const playerBottomCurr = player.y + player.radius * 0.75;
 
     for (let i = platforms.length - 1; i >= 0; i--) {
         const p = platforms[i];
 
-        // Move horizontal platforms
         if (p.type === PLATFORM_TYPE.MOVING) {
             p.x += p.vx * dtFactor;
             if (p.x < 10) {
@@ -1693,26 +3120,24 @@ function updatePlatforms(dtFactor) {
             }
         }
 
-        // Check Star Dash Power-up Direct Pickup in Air
-        if (p.hasStarDash && currentState === GAME_STATE.PLAYING) {
-            const starX = p.x + p.w / 2;
-            const starY = p.y - 18;
-            const dx = Math.abs(player.x - starX);
+        // In-Air Power-Up Pickup Check
+        if (p.powerUp !== POWERUP_TYPE.NONE && currentState === GAME_STATE.PLAYING) {
+            const itemX = p.x + p.w * 0.5;
+            const itemY = p.y - 18;
+            const dx = Math.abs(player.x - itemX);
             const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
-            const dy = Math.abs(player.y - starY);
-            if (wrappedDx < player.radius + 16 && dy < player.radius + 16) {
-                p.hasStarDash = false;
-                player.triggerStarDash();
-                spawnBounceBurst(starX, starY, '#ffd700');
+            const dy = Math.abs(player.y - itemY);
+            if (wrappedDx < player.radius + 17 && dy < player.radius + 17) {
+                applyPlatformPowerUp(p, itemX, itemY);
             }
         }
 
-        // While in Star Dash boost, shatter breakable platforms harmlessly if flying through them
+        // Harmlessly shatter breakable platforms during Star Dash
         if (player.starDashTimer > 0 && p.type === PLATFORM_TYPE.BREAKABLE && !p.broken) {
-            const platCenterX = p.x + p.w / 2;
+            const platCenterX = p.x + p.w * 0.5;
             const dx = Math.abs(player.x - platCenterX);
             const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
-            if (wrappedDx <= p.w / 2 + player.radius && Math.abs(player.y - p.y) < 28) {
+            if (wrappedDx <= p.w * 0.5 + player.radius && Math.abs(player.y - p.y) < 28) {
                 p.broken = true;
                 spawnShatterDebris(p);
                 soundManager.playShatter();
@@ -1721,24 +3146,23 @@ function updatePlatforms(dtFactor) {
             }
         }
 
-        // Platform Landing Collision Rule:
-        // ONLY triggers when falling downward (vy > 0) and bottom edge crosses platform top surface
+        // Platform Landing Collision (Falling Down Only)
         if (player.vy > 0 && !p.broken) {
             if (playerBottomPrev <= p.y + 8 && playerBottomCurr >= p.y - 2) {
-                // Check horizontal overlap (accounting for seamless screen wrap)
-                const platCenterX = p.x + p.w / 2;
+                const platCenterX = p.x + p.w * 0.5;
                 const dx = Math.abs(player.x - platCenterX);
                 const wrappedDx = Math.min(dx, LOGICAL_WIDTH - dx);
-                const hitHalfWidth = p.w / 2 + player.radius * 0.68;
+                const hitHalfWidth = p.w * 0.5 + player.radius * 0.68;
 
                 if (wrappedDx <= hitHalfWidth) {
                     player.y = p.y - player.radius * 0.75;
 
-                    if (p.hasStarDash) {
-                        p.hasStarDash = false;
-                        player.triggerStarDash();
-                        spawnBounceBurst(player.x, p.y, '#ffd700');
+                    if (p.powerUp === POWERUP_TYPE.STAR_DASH) {
+                        applyPlatformPowerUp(p, player.x, p.y);
                     } else {
+                        if (p.powerUp !== POWERUP_TYPE.NONE) {
+                            applyPlatformPowerUp(p, player.x, p.y);
+                        }
                         player.triggerBounce();
                     }
 
@@ -1756,7 +3180,6 @@ function updatePlatforms(dtFactor) {
             }
         }
 
-        // Garbage Collection: remove platforms below camera view
         if (p.y > cameraY + LOGICAL_HEIGHT + 100) {
             platforms.splice(i, 1);
         }
@@ -1767,7 +3190,6 @@ function drawPlatforms(ctx, cameraOffsetY) {
     for (let i = 0; i < platforms.length; i++) {
         const p = platforms[i];
         const screenY = Math.round(p.y - cameraOffsetY);
-        // Strict off-screen culling
         if (screenY < -40 || screenY > LOGICAL_HEIGHT + 30) continue;
 
         const px = Math.round(p.x);
@@ -1793,7 +3215,7 @@ function drawPlatforms(ctx, cameraOffsetY) {
         traceCapsule(ctx, px - 5, screenY - 5, pw + 10, ph + 10);
         ctx.fill();
 
-        // 2. Main Platform Base Capsule
+        // 2. Main Base Capsule
         ctx.fillStyle = baseCol;
         traceCapsule(ctx, px, screenY, pw, ph);
         ctx.fill();
@@ -1808,7 +3230,7 @@ function drawPlatforms(ctx, cameraOffsetY) {
         traceCapsule(ctx, px + 6, screenY + 2, pw - 12, 4);
         ctx.fill();
 
-        // 5. Crack Lines for Breakable Platforms
+        // 5. Breakable Crack Lines
         if (p.type === PLATFORM_TYPE.BREAKABLE) {
             ctx.strokeStyle = '#3b0909';
             ctx.lineWidth = 2;
@@ -1830,9 +3252,17 @@ function drawPlatforms(ctx, cameraOffsetY) {
             ctx.stroke();
         }
 
-        // 6. Draw Star Dash Power-Up if present
-        if (p.hasStarDash) {
-            drawStarPowerUp(ctx, Math.round(px + pw * 0.5), screenY - 18);
+        // 6. Draw Power-Up Icon above platform
+        if (p.powerUp !== POWERUP_TYPE.NONE) {
+            const ix = Math.round(px + pw * 0.5);
+            const iy = screenY - 18;
+            if (p.powerUp === POWERUP_TYPE.STAR_DASH) {
+                drawStarPowerUp(ctx, ix, iy);
+            } else if (p.powerUp === POWERUP_TYPE.MAGNET) {
+                drawMagnetPowerUp(ctx, ix, iy);
+            } else if (p.powerUp === POWERUP_TYPE.SHIELD) {
+                drawShieldPowerUp(ctx, ix, iy);
+            }
         }
     }
 }
@@ -1840,13 +3270,11 @@ function drawPlatforms(ctx, cameraOffsetY) {
 function drawStarPowerUp(ctx, x, y) {
     const bobY = Math.round(y + Math.sin(globalTime * 5) * 3);
 
-    // Outer Golden Halo
     ctx.fillStyle = 'rgba(255, 215, 0, 0.25)';
     ctx.beginPath();
     ctx.arc(x, bobY, 17, 0, Math.PI * 2);
     ctx.fill();
 
-    // Rotating 5-Point Star
     ctx.save();
     ctx.translate(x, bobY);
     ctx.rotate(globalTime * 2.2);
@@ -1866,7 +3294,6 @@ function drawStarPowerUp(ctx, x, y) {
     ctx.closePath();
     ctx.fill();
 
-    // Bright Core
     ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(0, 0, 3.2, 0, Math.PI * 2);
@@ -1874,9 +3301,59 @@ function drawStarPowerUp(ctx, x, y) {
     ctx.restore();
 }
 
+function drawMagnetPowerUp(ctx, x, y) {
+    const bobY = Math.round(y + Math.sin(globalTime * 5 + 1.2) * 3);
+
+    ctx.fillStyle = 'rgba(255, 107, 181, 0.24)';
+    ctx.beginPath();
+    ctx.arc(x, bobY, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.save();
+    ctx.translate(x, bobY);
+    ctx.strokeStyle = '#ff4d8d';
+    ctx.lineWidth = 4.5;
+    ctx.lineCap = 'butt';
+    ctx.beginPath();
+    ctx.arc(0, -1, 7.5, Math.PI, 0, false);
+    ctx.moveTo(-7.5, -1);
+    ctx.lineTo(-7.5, 6);
+    ctx.moveTo(7.5, -1);
+    ctx.lineTo(7.5, 6);
+    ctx.stroke();
+
+    ctx.fillStyle = '#e0fbfc';
+    ctx.fillRect(-9.7, 4, 4.4, 4.5);
+    ctx.fillRect(5.3, 4, 4.4, 4.5);
+    ctx.restore();
+}
+
+function drawShieldPowerUp(ctx, x, y) {
+    const bobY = Math.round(y + Math.sin(globalTime * 5 + 2.4) * 3);
+
+    ctx.fillStyle = 'rgba(56, 217, 255, 0.24)';
+    ctx.beginPath();
+    ctx.arc(x, bobY, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = 'rgba(56, 217, 255, 0.42)';
+    ctx.strokeStyle = '#8ef0ff';
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.arc(x, bobY, 10.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.arc(x, bobY, 6.5, -Math.PI * 0.8, -Math.PI * 0.38);
+    ctx.stroke();
+}
+
 /**
  * ============================================================================
- * 6. PARTICLE & BACKGROUND RENDERING (PURE GEOMETRY, ZERO TEXTURE BLEEDING)
+ * 9. PARTICLES, DYNAMIC SKY & HUD BUFF BAR
  * ============================================================================
  */
 function updateAndDrawParticles(ctx, dtFactor, cameraOffsetY) {
@@ -1904,14 +3381,12 @@ function updateAndDrawParticles(ctx, dtFactor, cameraOffsetY) {
         }
 
         if (pt.type === 'spark' || pt.type === 'star') {
-            // Soft outer halo circle
             ctx.globalAlpha = pt.alpha * 0.32;
             ctx.fillStyle = pt.color;
             ctx.beginPath();
             ctx.arc(px, screenY, pt.size * 1.45, 0, Math.PI * 2);
             ctx.fill();
 
-            // Crisp bright inner core circle
             ctx.globalAlpha = pt.alpha;
             ctx.fillStyle = pt.type === 'star' ? '#ffffff' : pt.color;
             ctx.beginPath();
@@ -1938,12 +3413,12 @@ function updateAndDrawParticles(ctx, dtFactor, cameraOffsetY) {
 }
 
 function drawDynamicBackground(ctx, dtFactor) {
-    // 1. Explicit tile clear + Cached Sky Gradient Fill (Zero offscreen texture stretching!)
+    // Explicit tile clear + Cached Sky Gradient Fill (Zero texture bleeding)
     ctx.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
     ctx.fillStyle = RenderCache.getSkyGradient(ctx, score);
     ctx.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-    // 2. Soft Space Nebulae (fade in after 6500m)
+    // Space Nebulae (fade in after 6500m)
     if (score > 6500) {
         ctx.globalAlpha = Math.min(1, (score - 6500) / 2000);
         for (let i = 0; i < bgNebulae.length; i++) {
@@ -1961,7 +3436,7 @@ function drawDynamicBackground(ctx, dtFactor) {
         ctx.globalAlpha = 1;
     }
 
-    // 3. Twinkling Parallax Stars (batched into 2 single-path circle groups)
+    // Twinkling Parallax Stars (2 batched circle paths)
     if (score > 3800) {
         const starVisibility = Math.min(1, (score - 3800) / 2200);
         const twinkleA = starVisibility * (0.45 + 0.5 * Math.sin(globalTime * 2.6));
@@ -1994,7 +3469,7 @@ function drawDynamicBackground(ctx, dtFactor) {
         ctx.globalAlpha = 1;
     }
 
-    // 4. Floating Ambient Spirit Motes (batched into a single anti-aliased circle path)
+    // Floating Ambient Spirit Motes (single batched circle path)
     ctx.fillStyle = '#ffffff';
     ctx.globalAlpha = 0.24;
     ctx.beginPath();
@@ -2023,7 +3498,6 @@ function drawTutorialHint(ctx) {
     ctx.save();
     ctx.globalAlpha = alpha;
 
-    // Subtle divided touch zones indicator at the bottom of the screen
     ctx.fillStyle = 'rgba(12, 18, 32, 0.55)';
     traceCapsule(ctx, 35, LOGICAL_HEIGHT - 74, LOGICAL_WIDTH - 70, 44);
     ctx.fill();
@@ -2048,40 +3522,87 @@ function drawTutorialHint(ctx) {
     ctx.restore();
 }
 
+let lastBuffUiKey = '';
+function updateHudBuffs() {
+    const hasSh = player.hasShield;
+    const magSec = player.magnetTimer > 0 ? Math.ceil(player.magnetTimer) : 0;
+    const dashSec = player.starDashTimer > 0 ? Math.ceil(player.starDashTimer) : 0;
+    const key = `${hasSh ? 1 : 0}_${magSec}_${dashSec}`;
+    if (key === lastBuffUiKey) return;
+    lastBuffUiKey = key;
+
+    buffShieldEl.classList.toggle('hidden', !hasSh);
+    buffMagnetEl.classList.toggle('hidden', magSec <= 0);
+    if (magSec > 0) buffMagnetTimeEl.textContent = `${magSec}s`;
+    buffDashEl.classList.toggle('hidden', dashSec <= 0);
+    if (dashSec > 0) buffDashTimeEl.textContent = `${dashSec}s`;
+}
+
 /**
  * ============================================================================
- * 7. GAME FLOW, REVIVE & STATE TRANSITIONS
+ * 10. GAME FLOW, SHOP (WITH COOLDOWN TIMER), REVIVE, DOUBLE COINS & SHARE
  * ============================================================================
  */
+function openShop(fromState) {
+    soundManager.initContext();
+    shopReturnTo = fromState;
+    renderShopUI();
+    shopScreen.classList.remove('hidden');
+
+    clearInterval(shopCooldownInterval);
+    shopCooldownInterval = setInterval(() => {
+        if (!shopScreen.classList.contains('hidden')) {
+            updateShopAdButtonUI();
+        }
+    }, 500);
+}
+
+function closeShop() {
+    clearInterval(shopCooldownInterval);
+    shopCooldownInterval = null;
+    shopScreen.classList.add('hidden');
+    refreshScoreDisplays();
+}
+
 function startNewGame() {
     soundManager.initContext();
+    clearInterval(shopCooldownInterval);
+    shopCooldownInterval = null;
+
     score = 0;
+    runCoins = 0;
     cameraY = 0;
     startY = 620;
-    tutorialTimer = 3.2; // 3.2 seconds tutorial fade
+    tutorialTimer = 3.2;
     hasRevivedThisRun = false;
-    clearParticles();
+    hasDoubledRunCoins = false;
+    lastBuffUiKey = '';
 
+    // Activate dynamic newbie assistance if player lost 3 times in a row below 600m
+    newbieAssistActive = lowAltitudeLossStreak >= 3;
+
+    clearParticles();
     initPlatformsForMenu();
-    player.reset(LOGICAL_WIDTH / 2, 560);
+    player.reset(LOGICAL_WIDTH / 2, 560, true);
 
     currentState = GAME_STATE.PLAYING;
     startScreen.classList.add('hidden');
+    shopScreen.classList.add('hidden');
     gameOverScreen.classList.add('hidden');
-    hudScorePill.style.opacity = '1';
+    hudScorePill.style.display = 'flex';
+    hudBuffRow.style.display = 'flex';
     refreshScoreDisplays();
+    updateHudBuffs();
 }
 
 function revivePlayer() {
     hasRevivedThisRun = true;
 
-    // Clear active inputs so player starts centered
     input.touchLeft = false;
     input.touchRight = false;
     input.leftKey = false;
     input.rightKey = false;
 
-    // Reposition Lumi safely inside the current camera view and place a wide safety platform underneath
     const safeY = cameraY + LOGICAL_HEIGHT * 0.65;
     player.x = LOGICAL_WIDTH / 2;
     player.y = safeY;
@@ -2096,17 +3617,18 @@ function revivePlayer() {
         h: 16,
         type: PLATFORM_TYPE.STATIC,
         vx: 0,
-        hasStarDash: false,
+        powerUp: POWERUP_TYPE.NONE,
         broken: false
     });
 
-    // Launch Lumi upward with a Star Dash golden boost so they rocket back into action safely
     player.triggerStarDash();
-    spawnBounceBurst(player.x, player.y, '#ffd700');
+    spawnBounceBurst(player.x, player.y, '#ffd700', 8);
 
     gameOverScreen.classList.add('hidden');
-    hudScorePill.style.opacity = '1';
+    hudScorePill.style.display = 'flex';
+    hudBuffRow.style.display = 'flex';
     currentState = GAME_STATE.PLAYING;
+    updateHudBuffs();
 }
 
 function triggerGameOver() {
@@ -2115,20 +3637,29 @@ function triggerGameOver() {
 
     soundManager.playGameOver();
 
-    // Clear active touch inputs
     input.touchLeft = false;
     input.touchRight = false;
     input.leftKey = false;
     input.rightKey = false;
 
+    if (score < 600) {
+        lowAltitudeLossStreak++;
+    } else {
+        lowAltitudeLossStreak = 0;
+        newbieAssistActive = false;
+    }
+
+    const previousBest = bestScore;
     let isNewRecord = false;
     if (score > bestScore) {
         bestScore = score;
         isNewRecord = true;
-        VKBridgeWrapper.saveBestScore(bestScore);
     }
 
-    hudScorePill.style.opacity = '0';
+    persistProgress();
+
+    hudScorePill.style.display = 'none';
+    hudBuffRow.style.display = 'none';
     refreshScoreDisplays();
 
     if (isNewRecord && score > 0) {
@@ -2137,12 +3668,29 @@ function triggerGameOver() {
         newRecordBadge.classList.add('hidden');
     }
 
-    // Show "Second Chance" rewarded button only if not used yet this run
+    const isNearRecord = !isNewRecord && previousBest >= 100 && score > 0 && ((previousBest - score) / previousBest) < 0.15;
+    if (isNearRecord && !hasRevivedThisRun) {
+        nearRecordBanner.classList.remove('hidden');
+    } else {
+        nearRecordBanner.classList.add('hidden');
+    }
+
     if (!hasRevivedThisRun) {
         reviveBtn.classList.remove('hidden');
     } else {
         reviveBtn.classList.add('hidden');
     }
+
+    if (runCoins > 0 && !hasDoubledRunCoins) {
+        document.getElementById('uiDoubleCoinsText').textContent = `${t('doubleCoinsPrefix')} (+${runCoins} 🪙)`;
+        doubleCoinsBtn.classList.remove('hidden');
+    } else {
+        doubleCoinsBtn.classList.add('hidden');
+    }
+
+    document.getElementById('uiShareBtnText').textContent = SaveData.shareRewardClaimed
+        ? t('sharePlain')
+        : t('shareWithReward');
 
     gameOverScreen.classList.remove('hidden');
 }
@@ -2155,10 +3703,90 @@ function handleReviveClick() {
     });
 }
 
+function handleDoubleCoinsClick() {
+    if (hasDoubledRunCoins || runCoins <= 0 || VKBridgeWrapper.adInProgress) return;
+    soundManager.initContext();
+    VKBridgeWrapper.showRewardedAd(() => {
+        hasDoubledRunCoins = true;
+        SaveData.coins += runCoins;
+        runCoins *= 2;
+        persistProgress();
+        refreshScoreDisplays();
+        doubleCoinsBtn.classList.add('hidden');
+        soundManager.playCash();
+        VKBridgeWrapper.haptic('medium');
+        showToast(t('doubleCoinsToast'));
+    });
+}
+
+function handleShopAdCoinsClick() {
+    if (VKBridgeWrapper.adInProgress || getShopAdRemainingMs() > 0) return;
+    soundManager.initContext();
+    VKBridgeWrapper.showRewardedAd(() => {
+        recordShopAdClaimed();
+        SaveData.coins += SHOP_AD_REWARD_COINS;
+        persistProgress();
+        refreshScoreDisplays();
+        renderShopUI();
+        soundManager.playCash();
+        VKBridgeWrapper.haptic('medium');
+        showToast(t('adCoinsToast'));
+    });
+}
+
+function handleBuyDashUpgradeClick() {
+    soundManager.initContext();
+    if (SaveData.dashUpgradeLevel >= MAX_UPGRADE_LEVEL) return;
+    const cost = UPGRADE_COSTS[SaveData.dashUpgradeLevel];
+    if (SaveData.coins < cost) return;
+
+    SaveData.coins -= cost;
+    SaveData.dashUpgradeLevel++;
+    persistProgress();
+    refreshScoreDisplays();
+    renderShopUI();
+    soundManager.playCash();
+    VKBridgeWrapper.haptic('medium');
+}
+
+function handleBuyMagnetUpgradeClick() {
+    soundManager.initContext();
+    if (SaveData.magnetUpgradeLevel >= MAX_UPGRADE_LEVEL) return;
+    const cost = UPGRADE_COSTS[SaveData.magnetUpgradeLevel];
+    if (SaveData.coins < cost) return;
+
+    SaveData.coins -= cost;
+    SaveData.magnetUpgradeLevel++;
+    persistProgress();
+    refreshScoreDisplays();
+    renderShopUI();
+    soundManager.playCash();
+    VKBridgeWrapper.haptic('medium');
+}
+
+function handleShareClick() {
+    soundManager.initContext();
+    const altToShare = Math.max(score, bestScore);
+    VKBridgeWrapper.shareRecord(altToShare, () => {
+        if (!SaveData.shareRewardClaimed) {
+            SaveData.shareRewardClaimed = true;
+            SaveData.coins += SHARE_REWARD_COINS;
+            persistProgress();
+            refreshScoreDisplays();
+            document.getElementById('uiShareBtnText').textContent = t('sharePlain');
+            soundManager.playCash();
+            VKBridgeWrapper.haptic('medium');
+            showToast(t('shareRewardToast'));
+        } else {
+            VKBridgeWrapper.haptic('light');
+            showToast(t('shareDoneToast'));
+        }
+    });
+}
+
 function handleRestartClick() {
     if (VKBridgeWrapper.adInProgress) return;
     soundManager.initContext();
-    // Show throttled VK Mini Apps Interstitial Ad on restart (max once per 60s)
     VKBridgeWrapper.showInterstitialAd(() => {
         startNewGame();
     });
@@ -2166,14 +3794,12 @@ function handleRestartClick() {
 
 /**
  * ============================================================================
- * 8. CROSS-PLATFORM INPUT LISTENERS & VK COMPLIANCE HOOKS
+ * 11. INPUT LISTENERS & TAB VISIBILITY AUTO-PAUSE
  * ============================================================================
  */
-// Block right-click & long-tap context menu strictly
 window.addEventListener('contextmenu', (e) => e.preventDefault(), { passive: false });
 window.addEventListener('selectstart', (e) => e.preventDefault(), { passive: false });
 
-// Keyboard Controls (Arrows + A/D + Space/Enter for UI)
 window.addEventListener('keydown', (e) => {
     soundManager.initContext();
     if (e.code === 'ArrowLeft' || e.code === 'KeyA') {
@@ -2181,6 +3807,7 @@ window.addEventListener('keydown', (e) => {
     } else if (e.code === 'ArrowRight' || e.code === 'KeyD') {
         input.rightKey = true;
     } else if (e.code === 'Space' || e.code === 'Enter') {
+        if (!shopScreen.classList.contains('hidden')) return;
         if (currentState === GAME_STATE.START_MENU) {
             e.preventDefault();
             startNewGame();
@@ -2199,7 +3826,6 @@ window.addEventListener('keyup', (e) => {
     }
 });
 
-// Multi-Touch Controls on Left / Right Halves of Screen
 function evaluateTouches(touchList) {
     if (currentState !== GAME_STATE.PLAYING) {
         input.touchLeft = false;
@@ -2207,18 +3833,14 @@ function evaluateTouches(touchList) {
         return;
     }
     const rect = canvas.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
+    const midX = rect.left + rect.width * 0.5;
 
     let leftActive = false;
     let rightActive = false;
 
     for (let i = 0; i < touchList.length; i++) {
-        const t = touchList[i];
-        if (t.clientX < midX) {
-            leftActive = true;
-        } else {
-            rightActive = true;
-        }
+        if (touchList[i].clientX < midX) leftActive = true;
+        else rightActive = true;
     }
     input.touchLeft = leftActive;
     input.touchRight = rightActive;
@@ -2245,13 +3867,12 @@ canvas.addEventListener('touchcancel', (e) => {
     evaluateTouches(e.touches);
 }, { passive: false });
 
-// Mouse Hold Support on Left / Right Halves for Desktop Click-and-Hold convenience
 canvas.addEventListener('mousedown', (e) => {
     soundManager.initContext();
     if (currentState !== GAME_STATE.PLAYING) return;
     input.pointerDown = true;
     const rect = canvas.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
+    const midX = rect.left + rect.width * 0.5;
     input.touchLeft = e.clientX < midX;
     input.touchRight = e.clientX >= midX;
 });
@@ -2259,7 +3880,7 @@ canvas.addEventListener('mousedown', (e) => {
 window.addEventListener('mousemove', (e) => {
     if (!input.pointerDown || currentState !== GAME_STATE.PLAYING) return;
     const rect = canvas.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
+    const midX = rect.left + rect.width * 0.5;
     input.touchLeft = e.clientX < midX;
     input.touchRight = e.clientX >= midX;
 });
@@ -2272,22 +3893,18 @@ window.addEventListener('mouseup', () => {
     }
 });
 
-// UI Button Listeners
-playBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    startNewGame();
-});
-
-reviveBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    handleReviveClick();
-});
-
-restartBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    handleRestartClick();
-});
-
+// UI Button Bindings
+playBtn.addEventListener('click', (e) => { e.stopPropagation(); startNewGame(); });
+openShopBtn.addEventListener('click', (e) => { e.stopPropagation(); openShop(GAME_STATE.START_MENU); });
+gameOverShopBtn.addEventListener('click', (e) => { e.stopPropagation(); openShop(GAME_STATE.GAME_OVER); });
+closeShopBtn.addEventListener('click', (e) => { e.stopPropagation(); closeShop(); });
+adCoinsBtn.addEventListener('click', (e) => { e.stopPropagation(); handleShopAdCoinsClick(); });
+buyDashUpgradeBtn.addEventListener('click', (e) => { e.stopPropagation(); handleBuyDashUpgradeClick(); });
+buyMagnetUpgradeBtn.addEventListener('click', (e) => { e.stopPropagation(); handleBuyMagnetUpgradeClick(); });
+reviveBtn.addEventListener('click', (e) => { e.stopPropagation(); handleReviveClick(); });
+doubleCoinsBtn.addEventListener('click', (e) => { e.stopPropagation(); handleDoubleCoinsClick(); });
+shareBtn.addEventListener('click', (e) => { e.stopPropagation(); handleShareClick(); });
+restartBtn.addEventListener('click', (e) => { e.stopPropagation(); handleRestartClick(); });
 muteBtn.addEventListener('click', (e) => {
     e.stopPropagation();
     soundManager.initContext();
@@ -2295,7 +3912,7 @@ muteBtn.addEventListener('click', (e) => {
     updateMuteUI();
 });
 
-// Tab Visibility & Window Focus Auto-Pause (Mandatory Yandex Games Moderation Requirement)
+// Tab Visibility & Focus Auto-Pause
 let isTabPaused = false;
 let lastFrameTime = performance.now();
 
@@ -2314,21 +3931,13 @@ function handleVisibilityOrBlur(hidden) {
     }
 }
 
-document.addEventListener('visibilitychange', () => {
-    handleVisibilityOrBlur(document.hidden);
-});
-
-window.addEventListener('blur', () => {
-    handleVisibilityOrBlur(true);
-});
-
-window.addEventListener('focus', () => {
-    handleVisibilityOrBlur(false);
-});
+document.addEventListener('visibilitychange', () => handleVisibilityOrBlur(document.hidden));
+window.addEventListener('blur', () => handleVisibilityOrBlur(true));
+window.addEventListener('focus', () => handleVisibilityOrBlur(false));
 
 /**
  * ============================================================================
- * 9. HIGH-REFRESH-RATE SAFE MAIN GAME LOOP (60Hz / 120Hz / 144Hz)
+ * 12. HIGH-REFRESH-RATE SAFE MAIN GAME LOOP (LOCKED 60+ FPS)
  * ============================================================================
  */
 function gameLoop(timestamp) {
@@ -2342,15 +3951,12 @@ function gameLoop(timestamp) {
     const deltaTime = Math.max(0, timestamp - lastFrameTime);
     lastFrameTime = timestamp;
 
-    // Normalized delta-time factor (1.0 at 60 FPS = 16.667ms)
     const dtFactor = Math.min(deltaTime / 16.667, 3);
     globalTime += (dtFactor * 16.667) / 1000;
 
-    // 1. Update Game Logic based on State
     if (currentState === GAME_STATE.START_MENU) {
         player.update(dtFactor);
         updatePlatforms(dtFactor);
-        // Keep Lumi safely bouncing in the menu
         if (player.y > 620) {
             player.y = 620;
             player.triggerBounce();
@@ -2362,6 +3968,7 @@ function gameLoop(timestamp) {
 
         player.update(dtFactor);
         updatePlatforms(dtFactor);
+        updateCoins(dtFactor);
 
         // Smooth Upward-Only Camera Tracking
         const cameraThreshold = cameraY + LOGICAL_HEIGHT * 0.42;
@@ -2370,35 +3977,43 @@ function gameLoop(timestamp) {
             cameraY += (targetCamY - cameraY) * 0.15 * dtFactor;
         }
 
-        // Update Score (1m per 10px climbed)
+        // Update Altitude Score (1m per 10px climbed)
         const climbedMeters = Math.floor(Math.max(0, startY - player.y) / 10);
         if (climbedMeters > score) {
             score = climbedMeters;
             hudScoreVal.textContent = String(score);
         }
 
-        // Check Game Over Condition (falling below bottom edge of screen)
-        if (player.y > cameraY + LOGICAL_HEIGHT + 60) {
-            triggerGameOver();
+        updateHudBuffs();
+
+        // Check Bottom Fall -> Bubble Shield Rescue OR Game Over
+        if (player.y > cameraY + LOGICAL_HEIGHT + 20) {
+            if (player.hasShield) {
+                player.triggerShieldSave();
+                updateHudBuffs();
+            } else if (player.y > cameraY + LOGICAL_HEIGHT + 60) {
+                triggerGameOver();
+            }
         }
     }
 
-    // 2. Render Frame (1:1 native logical coordinate space)
+    // Clean Vector Rendering (1:1 Native Resolution, Zero Offscreen Texture Bleeding)
     drawDynamicBackground(ctx, dtFactor);
     drawPlatforms(ctx, cameraY);
+    drawCoins(ctx, cameraY);
     updateAndDrawParticles(ctx, dtFactor, cameraY);
     player.draw(ctx, cameraY);
     drawTutorialHint(ctx);
 }
 
-// Initialize Game on Window Load
 window.onload = function () {
     configureCanvasResolution();
     RenderCache.init(ctx);
     initBackgroundElements();
     initPlatformsForMenu();
-    player.reset(LOGICAL_WIDTH / 2, 560);
+    player.reset(LOGICAL_WIDTH / 2, 560, false);
     VKBridgeWrapper.initSDK();
+    refreshAllUI();
     lastFrameTime = performance.now();
     requestAnimationFrame(gameLoop);
 };
