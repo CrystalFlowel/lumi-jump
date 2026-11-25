@@ -1186,6 +1186,12 @@ const SKINS = [
         gradStops: ['#ffffff', '#a8ff78', '#78ffd6', '#00d2ff'],
         auraOuter: 'rgba(0, 210, 255, 0.14)',
         auraInner: 'rgba(56, 239, 125, 0.22)',
+        boostGradStops: ['#ffffff', '#e0fff4', '#56f09f', '#00e5ff'],
+        boostAuraOuter: 'rgba(0, 245, 212, 0.22)',
+        boostAuraInner: 'rgba(120, 255, 214, 0.34)',
+        boostRing: 'rgba(168, 255, 120, 0.72)',
+        boostTrailColors: ['#ffffff', '#a8ff78', '#56f09f', '#00e5ff', '#78ffd6'],
+        boostBurstColor: '#56f09f',
         swatchCss: 'linear-gradient(135deg, #a8ff78, #00d2ff)',
         startShield: false,
         passiveMagnetRadius: 0,
@@ -1201,6 +1207,12 @@ const SKINS = [
         gradStops: ['#ffffff', '#fff3b0', '#ffbe0b', '#fb5607'],
         auraOuter: 'rgba(255, 190, 11, 0.15)',
         auraInner: 'rgba(255, 140, 0, 0.24)',
+        boostGradStops: ['#ffffff', '#fff9c4', '#ffd700', '#ff6d00'],
+        boostAuraOuter: 'rgba(255, 196, 0, 0.24)',
+        boostAuraInner: 'rgba(255, 234, 112, 0.36)',
+        boostRing: 'rgba(255, 224, 102, 0.78)',
+        boostTrailColors: ['#ffffff', '#fff3b0', '#ffd700', '#ff9f1c', '#ff6d00'],
+        boostBurstColor: '#ffd700',
         swatchCss: 'linear-gradient(135deg, #fff3b0, #fb5607)',
         startShield: false,
         passiveMagnetRadius: 95,
@@ -1216,6 +1228,12 @@ const SKINS = [
         gradStops: ['#ffffff', '#ffd6e8', '#ff85a1', '#ff4d6d'],
         auraOuter: 'rgba(255, 133, 161, 0.15)',
         auraInner: 'rgba(255, 77, 109, 0.23)',
+        boostGradStops: ['#ffffff', '#fff0f6', '#ff9ebb', '#ff3b7f'],
+        boostAuraOuter: 'rgba(255, 105, 180, 0.23)',
+        boostAuraInner: 'rgba(255, 182, 213, 0.36)',
+        boostRing: 'rgba(255, 209, 228, 0.78)',
+        boostTrailColors: ['#ffffff', '#ffe5ec', '#ffb3c6', '#ff70a6', '#ff4d6d'],
+        boostBurstColor: '#ff85a1',
         swatchCss: 'linear-gradient(135deg, #ffd6e8, #ff4d6d)',
         startShield: true,
         passiveMagnetRadius: 0,
@@ -1231,6 +1249,12 @@ const SKINS = [
         gradStops: ['#ffffff', '#e0c3fc', '#b16cea', '#6a11cb'],
         auraOuter: 'rgba(177, 108, 234, 0.16)',
         auraInner: 'rgba(106, 17, 203, 0.25)',
+        boostGradStops: ['#ffffff', '#f3e5ff', '#d084ff', '#8e2de2'],
+        boostAuraOuter: 'rgba(186, 85, 255, 0.24)',
+        boostAuraInner: 'rgba(224, 170, 255, 0.36)',
+        boostRing: 'rgba(232, 180, 255, 0.76)',
+        boostTrailColors: ['#ffffff', '#f3d9fa', '#d084ff', '#9d4edd', '#ff66d9'],
+        boostBurstColor: '#d084ff',
         swatchCss: 'linear-gradient(135deg, #e0c3fc, #6a11cb)',
         startShield: false,
         passiveMagnetRadius: 0,
@@ -1246,6 +1270,12 @@ const SKINS = [
         gradStops: ['#ffffff', '#caf0f8', '#48cae4', '#3a86ff'],
         auraOuter: 'rgba(72, 202, 228, 0.16)',
         auraInner: 'rgba(58, 134, 255, 0.26)',
+        boostGradStops: ['#ffffff', '#e0fbff', '#72efdd', '#4361ee'],
+        boostAuraOuter: 'rgba(72, 202, 228, 0.24)',
+        boostAuraInner: 'rgba(144, 224, 239, 0.38)',
+        boostRing: 'rgba(189, 224, 254, 0.80)',
+        boostTrailColors: ['#ffffff', '#caf0f8', '#72efdd', '#4cc9f0', '#90e0ef'],
+        boostBurstColor: '#72efdd',
         swatchCss: 'linear-gradient(135deg, #caf0f8, #3a86ff)',
         startShield: true,
         passiveMagnetRadius: 85,
@@ -1647,65 +1677,47 @@ class SoundManager {
         osc.stop(now + 0.15);
     }
 
-    // Modern, velvety, tactile indie pickup bloom (fixed pitch, cozy glass-marimba droplet)
+    // Ultra-clean, warm felt-kalimba pluck (fixed G4 392Hz, zero chirp, zero squeak on mobile speakers)
     playCoin() {
         if (!this.canPlay()) return;
         const now = this.ctx.currentTime;
 
-        // Dynamic low-pass filter simulates warm acoustic damping (zero 8-bit/synth harshness)
-        const filter = this.ctx.createBiquadFilter();
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(1400, now);
-        filter.frequency.exponentialRampToValueAtTime(520, now + 0.25);
-        filter.Q.setValueAtTime(0.6, now);
-        filter.connect(this.ctx.destination);
+        // Gentle warm low-pass filter removes any phone-speaker harshness (>900Hz)
+        const warmFilter = this.ctx.createBiquadFilter();
+        warmFilter.type = 'lowpass';
+        warmFilter.frequency.setValueAtTime(900, now);
+        warmFilter.Q.setValueAtTime(0.5, now);
+        warmFilter.connect(this.ctx.destination);
 
-        // 1. Velvety warm droplet body (gentle upward bloom into B4 = 493.88Hz)
-        const bodyOsc = this.ctx.createOscillator();
-        const bodyGain = this.ctx.createGain();
-        bodyOsc.type = 'sine';
-        bodyOsc.frequency.setValueAtTime(425, now);
-        bodyOsc.frequency.exponentialRampToValueAtTime(493.88, now + 0.032);
+        // 1. Clean rounded woody-kalimba body (fixed G4 = 392Hz, smooth 6ms felt attack, crisp 135ms decay)
+        const mainOsc = this.ctx.createOscillator();
+        const mainGain = this.ctx.createGain();
+        mainOsc.type = 'sine';
+        mainOsc.frequency.setValueAtTime(392.0, now);
 
-        bodyGain.gain.setValueAtTime(0.0001, now);
-        bodyGain.gain.linearRampToValueAtTime(0.135, now + 0.014);
-        bodyGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.24);
+        mainGain.gain.setValueAtTime(0.0001, now);
+        mainGain.gain.linearRampToValueAtTime(0.125, now + 0.006);
+        mainGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.135);
 
-        bodyOsc.connect(bodyGain);
-        bodyGain.connect(filter);
-        bodyOsc.start(now);
-        bodyOsc.stop(now + 0.25);
+        mainOsc.connect(mainGain);
+        mainGain.connect(warmFilter);
+        mainOsc.start(now);
+        mainOsc.stop(now + 0.14);
 
-        // 2. Silky harmonic fifth shimmer (F#5 = 739.99Hz, blooming together for plush atmosphere)
-        const shimmerOsc = this.ctx.createOscillator();
-        const shimmerGain = this.ctx.createGain();
-        const tShim = now + 0.008;
-        shimmerOsc.type = 'sine';
-        shimmerOsc.frequency.setValueAtTime(739.99, tShim);
+        // 2. Subtle short mallet tap sheen (fixed D5 = 587.33Hz, fades in just 48ms for tactile clarity without ringing)
+        const tapOsc = this.ctx.createOscillator();
+        const tapGain = this.ctx.createGain();
+        tapOsc.type = 'sine';
+        tapOsc.frequency.setValueAtTime(587.33, now);
 
-        shimmerGain.gain.setValueAtTime(0.0001, tShim);
-        shimmerGain.gain.linearRampToValueAtTime(0.055, tShim + 0.016);
-        shimmerGain.gain.exponentialRampToValueAtTime(0.0001, tShim + 0.21);
+        tapGain.gain.setValueAtTime(0.0001, now);
+        tapGain.gain.linearRampToValueAtTime(0.042, now + 0.004);
+        tapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.048);
 
-        shimmerOsc.connect(shimmerGain);
-        shimmerGain.connect(filter);
-        shimmerOsc.start(tShim);
-        shimmerOsc.stop(tShim + 0.22);
-
-        // 3. Subtle cozy sub-warmth (B3 = 246.94Hz) for tactile softness
-        const warmOsc = this.ctx.createOscillator();
-        const warmGain = this.ctx.createGain();
-        warmOsc.type = 'sine';
-        warmOsc.frequency.setValueAtTime(246.94, now);
-
-        warmGain.gain.setValueAtTime(0.0001, now);
-        warmGain.gain.linearRampToValueAtTime(0.05, now + 0.012);
-        warmGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.14);
-
-        warmOsc.connect(warmGain);
-        warmGain.connect(filter);
-        warmOsc.start(now);
-        warmOsc.stop(now + 0.15);
+        tapOsc.connect(tapGain);
+        tapGain.connect(warmFilter);
+        tapOsc.start(now);
+        tapOsc.stop(now + 0.055);
     }
 
     playPowerUp() {
@@ -2063,25 +2075,28 @@ const RenderCache = {
     skyGrad: null,
     lastSkyQuantizedAlt: -9999,
     skinGradients: {},
-    lumiGradBoost: null,
+    skinBoostGradients: {},
 
     init(mainCtx) {
         const r = 20;
         for (let i = 0; i < SKINS.length; i++) {
             const sk = SKINS[i];
+
             const g = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
             g.addColorStop(0, sk.gradStops[0]);
             g.addColorStop(0.42, sk.gradStops[1]);
             g.addColorStop(0.8, sk.gradStops[2]);
             g.addColorStop(1, sk.gradStops[3]);
             this.skinGradients[sk.id] = g;
-        }
 
-        const boostGrad = mainCtx.createRadialGradient(-4, -6, 3, 0, 0, r * 1.35);
-        boostGrad.addColorStop(0, '#ffffff');
-        boostGrad.addColorStop(0.45, '#ffeaa7');
-        boostGrad.addColorStop(1, '#fdcb6e');
-        this.lumiGradBoost = boostGrad;
+            // Pre-cached unique Star Dash gradient for each skin (zero per-frame allocation)
+            const bg = mainCtx.createRadialGradient(-3, -5, 4, 0, 0, r * 1.38);
+            bg.addColorStop(0, sk.boostGradStops[0]);
+            bg.addColorStop(0.42, sk.boostGradStops[1]);
+            bg.addColorStop(0.76, sk.boostGradStops[2]);
+            bg.addColorStop(1, sk.boostGradStops[3]);
+            this.skinBoostGradients[sk.id] = bg;
+        }
 
         this.lastSkyQuantizedAlt = -9999;
         this.getSkyGradient(mainCtx, 0);
@@ -2503,11 +2518,11 @@ function spawnShatterDebris(plat) {
 }
 
 let starDashEmitToggle = false;
-const STAR_DASH_COLORS = ['#ffd700', '#ffdd59', '#38ef7d', '#00d2ff', '#ff6b81'];
 function spawnStarDashParticles(x, y) {
     starDashEmitToggle = !starDashEmitToggle;
     if (!starDashEmitToggle) return;
 
+    const palette = getCurrentSkin().boostTrailColors;
     const pt = acquireParticle();
     pt.type = 'star';
     pt.x = x + randomRange(-16, 16);
@@ -2516,7 +2531,7 @@ function spawnStarDashParticles(x, y) {
     pt.vy = randomRange(2.2, 5.0);
     pt.gravity = 0.04;
     pt.size = randomRange(4.2, 6.6);
-    pt.color = STAR_DASH_COLORS[(Math.random() * STAR_DASH_COLORS.length) | 0];
+    pt.color = palette[(Math.random() * palette.length) | 0];
     pt.alpha = 1;
     pt.decay = 0.045;
 }
@@ -2743,20 +2758,30 @@ const player = {
         ctx.translate(ix, iy);
         ctx.scale(this.scaleX, this.scaleY);
 
-        // 1. Soft Layered Outer Aura (Pure Vector Arcs, Zero Artifacts)
-        ctx.fillStyle = isBoosted ? 'rgba(255, 200, 0, 0.16)' : skin.auraOuter;
+        // 1. Soft Layered Outer Aura (Pure Vector Arcs, Unique Per-Skin Star Dash Glow)
+        ctx.fillStyle = isBoosted ? skin.boostAuraOuter : skin.auraOuter;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 1.85, 0, Math.PI * 2);
+        ctx.arc(0, 0, isBoosted ? r * 2.05 : r * 1.85, 0, Math.PI * 2);
         ctx.fill();
 
-        ctx.fillStyle = isBoosted ? 'rgba(255, 225, 80, 0.26)' : skin.auraInner;
+        ctx.fillStyle = isBoosted ? skin.boostAuraInner : skin.auraInner;
         ctx.beginPath();
-        ctx.arc(0, 0, r * 1.35, 0, Math.PI * 2);
+        ctx.arc(0, 0, isBoosted ? r * 1.48 : r * 1.35, 0, Math.PI * 2);
         ctx.fill();
 
-        // 2. Smooth Bezier Droplet Body using pre-cached skin gradient
+        // Pulsing skin-matched energy ring during Star Dash flight
+        if (isBoosted) {
+            const ringPulse = r * (1.58 + Math.sin(globalTime * 14) * 0.14);
+            ctx.strokeStyle = skin.boostRing;
+            ctx.lineWidth = 2.2;
+            ctx.beginPath();
+            ctx.arc(0, 0, ringPulse, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // 2. Smooth Bezier Droplet Body using pre-cached skin (or skin-boost) gradient
         ctx.fillStyle = isBoosted
-            ? RenderCache.lumiGradBoost
+            ? (RenderCache.skinBoostGradients[skin.id] || RenderCache.skinBoostGradients.mint)
             : (RenderCache.skinGradients[skin.id] || RenderCache.skinGradients.mint);
         ctx.beginPath();
         ctx.moveTo(0, -r * 1.18);
@@ -3084,7 +3109,7 @@ function applyPlatformPowerUp(p, pickupX, pickupY) {
 
     if (kind === POWERUP_TYPE.STAR_DASH) {
         player.triggerStarDash();
-        spawnBounceBurst(pickupX, pickupY, '#ffd700', 8);
+        spawnBounceBurst(pickupX, pickupY, getCurrentSkin().boostBurstColor, 8);
     } else if (kind === POWERUP_TYPE.MAGNET) {
         player.triggerMagnet();
         spawnBounceBurst(pickupX, pickupY, '#ff6bb5', 8);
@@ -3622,7 +3647,7 @@ function revivePlayer() {
     });
 
     player.triggerStarDash();
-    spawnBounceBurst(player.x, player.y, '#ffd700', 8);
+    spawnBounceBurst(player.x, player.y, getCurrentSkin().boostBurstColor, 8);
 
     gameOverScreen.classList.add('hidden');
     hudScorePill.style.display = 'flex';
