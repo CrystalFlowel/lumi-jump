@@ -1677,47 +1677,25 @@ class SoundManager {
         osc.stop(now + 0.15);
     }
 
-    // Ultra-clean, warm felt-kalimba pluck (fixed G4 392Hz, zero chirp, zero squeak on mobile speakers)
+    // Soft, shorter & slightly brighter Jelly Bloop for coins (350Hz -> 700Hz over 0.095s)
     playCoin() {
         if (!this.canPlay()) return;
         const now = this.ctx.currentTime;
+        const osc = this.ctx.createOscillator();
+        const gain = this.ctx.createGain();
 
-        // Gentle warm low-pass filter removes any phone-speaker harshness (>900Hz)
-        const warmFilter = this.ctx.createBiquadFilter();
-        warmFilter.type = 'lowpass';
-        warmFilter.frequency.setValueAtTime(900, now);
-        warmFilter.Q.setValueAtTime(0.5, now);
-        warmFilter.connect(this.ctx.destination);
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(350, now);
+        osc.frequency.exponentialRampToValueAtTime(700, now + 0.095);
 
-        // 1. Clean rounded woody-kalimba body (fixed G4 = 392Hz, smooth 6ms felt attack, crisp 135ms decay)
-        const mainOsc = this.ctx.createOscillator();
-        const mainGain = this.ctx.createGain();
-        mainOsc.type = 'sine';
-        mainOsc.frequency.setValueAtTime(392.0, now);
+        gain.gain.setValueAtTime(0.001, now);
+        gain.gain.linearRampToValueAtTime(0.15, now + 0.005);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.105);
 
-        mainGain.gain.setValueAtTime(0.0001, now);
-        mainGain.gain.linearRampToValueAtTime(0.125, now + 0.006);
-        mainGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.135);
-
-        mainOsc.connect(mainGain);
-        mainGain.connect(warmFilter);
-        mainOsc.start(now);
-        mainOsc.stop(now + 0.14);
-
-        // 2. Subtle short mallet tap sheen (fixed D5 = 587.33Hz, fades in just 48ms for tactile clarity without ringing)
-        const tapOsc = this.ctx.createOscillator();
-        const tapGain = this.ctx.createGain();
-        tapOsc.type = 'sine';
-        tapOsc.frequency.setValueAtTime(587.33, now);
-
-        tapGain.gain.setValueAtTime(0.0001, now);
-        tapGain.gain.linearRampToValueAtTime(0.042, now + 0.004);
-        tapGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.048);
-
-        tapOsc.connect(tapGain);
-        tapGain.connect(warmFilter);
-        tapOsc.start(now);
-        tapOsc.stop(now + 0.055);
+        osc.connect(gain);
+        gain.connect(this.ctx.destination);
+        osc.start(now);
+        osc.stop(now + 0.11);
     }
 
     playPowerUp() {
